@@ -1,3 +1,3 @@
 all:
-	g++ hello.cpp -lpthread -o hello
+	g++ -std=c++11 -pthread main.cpp
 
