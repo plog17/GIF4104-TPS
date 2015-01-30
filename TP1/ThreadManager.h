@@ -11,6 +11,7 @@ public:
     void joinOdd();
 
 private:
+    void createThreads();
     void worker(int tid);
     void printHello(int tid);
     int getHighestOdd(int n);

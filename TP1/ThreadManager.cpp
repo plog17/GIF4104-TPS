@@ -1,15 +1,20 @@
 #include "ThreadManager.h"
 
 ThreadManager::ThreadManager(int nThread) : nThread(nThread) {
-    this->threads = new std::thread[nThread];
     this->HighestOdd = this->getHighestOdd(nThread);
-    for (int i = 0; i < nThread; ++i) {
-        threads[i] = std::thread(&ThreadManager::worker,this, i + 1);
-    }
+    this->createThreads();
 }
+
 
 ThreadManager::~ThreadManager() {
     delete[] this->threads;
+}
+
+void ThreadManager::createThreads(){
+    this->threads = new std::thread[this->nThread];
+    for (int i = 0; i < this->nThread; ++i) {
+        this->threads[i] = std::thread(&ThreadManager::worker,this, i + 1);
+    }
 }
 
 void ThreadManager::joinEven() {
@@ -28,18 +33,18 @@ void ThreadManager::joinOdd() {
 }
 
 void ThreadManager::printHello(int tid) {
-    this->Cout.lock();
+    std::lock_guard<std::mutex> lock(this->Cout);
     std::cout << "Je suis le fil d'execution #" << tid << std::endl;
-    this->Cout.unlock();
 }
 
 void ThreadManager::worker(int tid) {
     if (tid % 2 != 0) {
-        std::unique_lock<std::mutex> locker2(this->LockOdd);
-        this->OddCond.wait(locker2, [=]() {
+        std::unique_lock<std::mutex> locker(this->LockOdd);
+        this->OddCond.wait(locker, [=]() {
             return tid >= this->HighestOdd - 1 && this->OddReady;
         });
         this->HighestOdd -= 2;
+        locker.unlock();
         printHello(tid);
         this->OddCond.notify_all();
     }
@@ -49,6 +54,7 @@ void ThreadManager::worker(int tid) {
             return tid <= this->LowestEven;
         });
         this->LowestEven += 2;
+        locker.unlock();
         printHello(tid);
         this->EvenCond.notify_all();
     }

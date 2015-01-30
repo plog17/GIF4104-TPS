@@ -24,7 +24,7 @@ int getArgument(int argc, char **argv) {
     }
     else {
         std::cout << "launch file with 1 argument containing the number of thread" << std::endl;
-        std::cout << "ex: ./exec 12" << std::endl;
+        std::cout << "ex: TP1 12" << std::endl;
     }
     return nThread;
 }
