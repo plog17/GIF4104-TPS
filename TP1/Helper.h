@@ -9,8 +9,6 @@ class Helper{
 public:
     Helper(int nbThreads, int sleepTime);
     ~Helper();
-    //void joinEven();
-    //void joinOdd();
 
     void calculateSynchronisationConditions();
     void printMessage(int id);
@@ -20,7 +18,6 @@ public:
 
 private:
     std::mutex LockWaitEven;
-    //std::mutex LockEven;
     std::mutex LockElem;
 
     std::condition_variable evenDone;
