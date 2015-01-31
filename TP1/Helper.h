@@ -16,9 +16,13 @@ public:
     void printMessage(int id);
     void executeThread(int id);
     void createThreads();
+    void joinThreads();
 
 private:
-    std::mutex m;
+    std::mutex LockWaitEven;
+    //std::mutex LockEven;
+    std::mutex LockElem;
+
     std::condition_variable evenDone;
     std::condition_variable nextElem;
     std::vector<std::thread> v;
