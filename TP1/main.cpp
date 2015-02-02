@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 }
 
 int getArgument(int argc, char **argv) {
-    int nThread;
+    int nThread = 0;
     if (argc == 2) {
         nThread = std::stoi(argv[1]);
     }
