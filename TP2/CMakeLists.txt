@@ -9,7 +9,9 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
-file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_executable(TP1 main.cpp ${HEADER_FILES} ${SOURCE_FILES})
+file(GLOB HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h*")
+file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+
+add_executable(TP1 src/main.cpp ${HEADER_FILES} ${SOURCE_FILES})
