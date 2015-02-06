@@ -5,6 +5,7 @@
 *.obj
 
 */.idea/*
+*/build/*
 
 # Precompiled Headers
 *.gch
