@@ -1,0 +1,44 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/PngImage.h
+iostream
+-
+stdexcept
+-
+lodepng.h
+../include/lodepng.h
+vector
+-
+
+../include/lodepng.h
+string.h
+-
+vector
+-
+string
+-
+lodepng.h
+../include/lodepng.h
+iostream
+-
+lodepng.h
+../include/lodepng.h
+
+/home/mathieu/sourceRepos/universite/GIF4104-TPS/TP2/src/PngImage.cpp
+PngImage.h
+/home/mathieu/sourceRepos/universite/GIF4104-TPS/TP2/src/PngImage.h
+
+/home/mathieu/sourceRepos/universite/GIF4104-TPS/TP2/src/main.cpp
+iostream
+-
+fstream
+-
+PngImage.h
+/home/mathieu/sourceRepos/universite/GIF4104-TPS/TP2/src/PngImage.h
+

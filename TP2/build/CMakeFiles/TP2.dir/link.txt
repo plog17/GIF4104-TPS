@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11 -fopenmp  -pthread CMakeFiles/TP2.dir/src/main.cpp.o CMakeFiles/TP2.dir/src/lodepng.cpp.o CMakeFiles/TP2.dir/src/PngImage.cpp.o  -o TP2 -rdynamic 
