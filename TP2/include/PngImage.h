@@ -15,13 +15,10 @@ public:
 
     void writeToDisk(const char* filename);
 
-    typedef std::vector<unsigned char>::iterator iterator;
-    typedef std::vector<unsigned char>::const_iterator const_iterator;
-
-    iterator begin();
-    const_iterator begin() const;
-    iterator end();
-    const_iterator end() const;
+    std::vector<unsigned char>::iterator begin();
+    std::vector<unsigned char>::const_iterator begin() const;
+    std::vector<unsigned char>::iterator end();
+    std::vector<unsigned char>::const_iterator end() const;
 
     unsigned char operator[](int i) const;
 
@@ -38,13 +35,13 @@ inline unsigned char &PngImage::operator[](int i) {return this->imageData->opera
 
 inline unsigned char PngImage::operator[](int i) const {return this->imageData->operator[](i);}
 
-inline iterator PngImage::begin() { return this->imageData->begin(); }
+inline std::vector<unsigned char>::iterator PngImage::begin() { return this->imageData->begin(); }
 
-inline const_iterator PngImage::begin() const { return this->imageData->begin(); }
+inline std::vector<unsigned char>::const_iterator PngImage::begin() const { return this->imageData->begin(); }
 
-inline iterator PngImage::end() { return this->imageData->end(); }
+inline std::vector<unsigned char>::iterator PngImage::end() { return this->imageData->end(); }
 
-inline const_iterator PngImage::end() const { return this->imageData->end(); }
+inline std::vector<unsigned char>::const_iterator PngImage::end() const { return this->imageData->end(); }
 
 inline unsigned int PngImage::getHeight() const{return this->height;}
 
