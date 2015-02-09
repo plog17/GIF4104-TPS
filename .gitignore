@@ -4,6 +4,9 @@
 *.o
 *.obj
 
+*/.idea/*
+*/build/*
+
 # Precompiled Headers
 *.gch
 *.pch

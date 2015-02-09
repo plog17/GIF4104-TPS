@@ -1,27 +1,30 @@
-#include <iostream>
-#include <cstdlib>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
-#include <vector>
-#include "Helper.h"
+#include "ThreadManager.h"
 
 
-int main (int argc, char* argv[])
-{
-  if (argc == 3) {
-    int NUM_THREADS=atoi(argv[1]);
-    int sleepTimeMilliSeconds=atoi(argv[2])*1000;
+int getArgument(int argc, char **argv);
 
-    Helper helper(NUM_THREADS,sleepTimeMilliSeconds);
-    helper.createThreads();
-    helper.joinThreads();
-  }
 
-  else {
-    std::cout << "SVP fournir le NOMBRE DE THREADS et le DÉLAI de production en paramètres" << std::endl;
-    std::cout << "ex: TP1 50 10\nCréera 50 threads avec 10 millisecondes d'attente entre les productions" << std::endl;
-  }
+int main(int argc, char **argv) {
 
-  return 0;
+    int nThread = getArgument(argc, argv);
+    std::cout.sync_with_stdio(true);
+
+    ThreadManager tManager(nThread);
+
+    tManager.joinEven();
+    tManager.joinOdd();
+
+    return 0;
+}
+
+int getArgument(int argc, char **argv) {
+    int nThread = 0;
+    if (argc == 2) {
+        nThread = std::stoi(argv[1]);
+    }
+    else {
+        std::cout << "launch file with 1 argument containing the number of thread" << std::endl;
+        std::cout << "ex: TP1 12" << std::endl;
+    }
+    return nThread;
 }
