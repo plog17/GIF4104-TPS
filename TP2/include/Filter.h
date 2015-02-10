@@ -9,6 +9,7 @@ public:
     Filter(std::string path);
     ~Filter();
 
+    int size();
     double operator[](int i) const;
     double & operator[](int i);
 
