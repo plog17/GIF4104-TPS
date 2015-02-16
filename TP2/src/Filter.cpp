@@ -9,7 +9,7 @@ Filter::Filter(std::string path) {
 
     this->token = new PACC::Tokenizer(lConfig);
     this->token->setDelimiters(" \n","");
-
+    this->data = nullptr;
     this->filterSize = loadSize();
     this->loadFilterData();
 
