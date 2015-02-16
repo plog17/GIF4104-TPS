@@ -26,6 +26,9 @@ int main(int argc, char **argv) {
     PngImage newImage = convolve(exampleImg, filter);
     std::cout << "Total Time: " << chrono.get() - startTime << " sec" << std::endl;
     newImage.writeToDisk(pathToOutput);
+
+    SequentialExecuter sequential(pathToImage);
+
     return 0;
 }
 
