@@ -35,17 +35,18 @@ int main(int argc, char **argv) {
       double startTime = chrono.get();
       PngImage newImage = convolve(exampleImg, filter);
       double elaspedTime = chrono.get() - startTime;
-      std::cout << "Total Time for openMP solution: " << elaspedTime << " sec" << std::endl;
-      newImage.writeToDisk(pathToOutput);
       totalOpenMPTime +=elaspedTime;
+
+      std::cout << "Total Time for OpenMP solution: " << elaspedTime << " sec" << std::endl;
+      newImage.writeToDisk(pathToOutput);
 
       chrono.reset();
       startTime = chrono.get();
       PngImage newImageSeq = convolveSequential(exampleImg, filter);
       elaspedTime = chrono.get() - startTime;
-      std::cout << "Total Time for sequential solution: " << elaspedTime << " sec" << std::endl;
       totalSequentialTime +=elaspedTime;
 
+      std::cout << "Total Time for sequential solution: " << elaspedTime << " sec" << std::endl;
   }
 
   std::cout << "------------------------" << std::endl;
