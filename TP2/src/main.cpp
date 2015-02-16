@@ -16,13 +16,14 @@ unsigned getNumberOfCoreOnMachine();
 const char* pathToImage;
 const char* pathToFilter;
 const char* pathToOutput;
+const int nbIterations;
+const int nbThreads;
 
 int main(int argc, char **argv) {
   double totalSequentialTime=0;
   double totalOpenMPTime=0;
   Chrono chrono(false);
 
-  int nbIterations=10;
   for (int i=0; i<=nbIterations;++i){
       chrono.reset();
       chrono.resume();
@@ -49,7 +50,7 @@ int main(int argc, char **argv) {
 
   std::cout << "------------------------" << std::endl;
   std::cout << "Average Time for sequential solution: " << totalSequentialTime/nbIterations << " sec" << std::endl;
-  std::cout << "Average Time for OpenMP solution with " << getNumberOfCoreOnMachine() << " cores used by OpenMP: "<<totalOpenMPTime/nbIterations << " sec" << std::endl;
+  std::cout << "Average Time for OpenMP solution with " << nbThreads << " cores used by OpenMP: "<<totalOpenMPTime/nbIterations << " sec" << std::endl;
 
   return 0;
 }
@@ -66,7 +67,7 @@ PngImage convolve(PngImage &exampleImg, Filter &filter) {
     int blocks = convoWidth * convoHeight;
     int i = 0;
 
-    #pragma omp parallel private(i) num_threads(getNumberOfCoreOnMachine())
+    #pragma omp parallel private(i) num_threads(nbThreads)
     {
         #pragma omp for schedule(static) nowait
         for (i = 0; i < blocks; ++i) {
@@ -126,7 +127,7 @@ PngImage convolveSequential(PngImage &exampleImg, Filter &filter) {
 
 
 int loadArguments(int argc, char **argv) {
-    if(argc<3 || argc>4){
+    if(argc<3 || argc>6){
         std::cout<<"Utilisation incorrecte."<<std::endl;
         usage("TP2");
     }
@@ -134,15 +135,26 @@ int loadArguments(int argc, char **argv) {
         pathToImage=argv[1];
         pathToFilter=argv[2];
         pathToOutput="output.png";
+        nbThreads=getNumberOfCoreOnMachine();
+        nbIterations=1;
     }
-    else{
+    else if (argc==4){
         pathToImage=argv[1];
         pathToFilter=argv[2];
         pathToOutput=argv[3];
+        nbThreads=std::stoi(argv[4]);
+        nbIterations=1;
+    }
+    else {
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToOutput=argv[3];
+        nbThreads=std::stoi(argv[4]);
+        nbIterations=std::stoi(argv[5]);
     }
 }
 
 void usage(std::string inName) {
-    std::cout << std::endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png]" << std::endl;
+    std::cout << std::endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png] [nombre_threads=nombre_coeur_machine] [nombre_iteration=1]" << std::endl;
     exit(1);
 }
