@@ -5,6 +5,7 @@
 #include "Filter.h"
 #include "Chrono.hpp"
 #include "omp.h"
+#include <thread>
 
 int loadArguments(int argc, char **argv);
 void usage(std::string inName);
@@ -44,8 +45,10 @@ PngImage convolve(PngImage &exampleImg, Filter &filter) {
     int convoHeight = exampleImg.getHeight() - filter.size();
     int blocks = convoWidth * convoHeight;
     int i = 0;
+    
+    unsigned nbOfCoreOnMachine=std::thread::hardware_concurrency();
 
-    #pragma omp parallel private(i) num_threads(4)
+    #pragma omp parallel private(i) num_threads(nbOfCoreOnMachine)
     {
         #pragma omp for schedule(static) nowait
         for (i = 0; i < blocks; ++i) {
