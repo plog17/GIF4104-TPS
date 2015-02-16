@@ -11,32 +11,52 @@ int loadArguments(int argc, char **argv);
 void usage(std::string inName);
 PngImage convolve(PngImage &exampleImg, Filter &filter);
 PngImage convolveSequential(PngImage &exampleImg, Filter &filter);
+unsigned getNumberOfCoreOnMachine();
 
 const char* pathToImage;
 const char* pathToFilter;
 const char* pathToOutput;
 
 int main(int argc, char **argv) {
-    Chrono chrono(false);
-    chrono.resume();
+  double totalSequentialTime=0;
+  double totalOpenMPTime=0;
+  Chrono chrono(false);
 
-    loadArguments(argc, argv);
+  int nbIterations=10;
+  for (int i=0; i<=nbIterations;++i){
+      chrono.reset();
+      chrono.resume();
 
-    PngImage exampleImg(pathToImage);
-    Filter filter(pathToFilter);
-    double startTime = chrono.get();
-    PngImage newImage = convolve(exampleImg, filter);
-    std::cout << "Total Time for solution using OpenMP: " << chrono.get() - startTime << " sec" << std::endl;
-    newImage.writeToDisk(pathToOutput);
+      loadArguments(argc, argv);
 
-    chrono.reset();
-    startTime = chrono.get();
-    PngImage newImageSeq = convolveSequential(exampleImg, filter);
-    std::cout << "Total Time for sequential solution: " << chrono.get() - startTime << " sec" << std::endl;
+      PngImage exampleImg(pathToImage);
+      Filter filter(pathToFilter);
+      double startTime = chrono.get();
+      PngImage newImage = convolve(exampleImg, filter);
+      double elaspedTime = chrono.get() - startTime;
+      std::cout << "Total Time for openMP solution: " << elaspedTime << " sec" << std::endl;
+      newImage.writeToDisk(pathToOutput);
+      totalOpenMPTime +=elaspedTime;
 
-    return 0;
+      chrono.reset();
+      startTime = chrono.get();
+      PngImage newImageSeq = convolveSequential(exampleImg, filter);
+      elaspedTime = chrono.get() - startTime;
+      std::cout << "Total Time for sequential solution: " << elaspedTime << " sec" << std::endl;
+      totalSequentialTime +=elaspedTime;
+
+  }
+
+  std::cout << "------------------------" << std::endl;
+  std::cout << "Average Time for sequential solution: " << totalSequentialTime/nbIterations << " sec" << std::endl;
+  std::cout << "Average Time for OpenMP solution: " << totalOpenMPTime/nbIterations << " sec" << std::endl;
+
+  return 0;
 }
 
+unsigned getNumberOfCoreOnMachine(){
+  return std::thread::hardware_concurrency();
+}
 
 PngImage convolve(PngImage &exampleImg, Filter &filter) {
     PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
@@ -45,10 +65,8 @@ PngImage convolve(PngImage &exampleImg, Filter &filter) {
     int convoHeight = exampleImg.getHeight() - filter.size();
     int blocks = convoWidth * convoHeight;
     int i = 0;
-    
-    unsigned nbOfCoreOnMachine=std::thread::hardware_concurrency();
 
-    #pragma omp parallel private(i) num_threads(nbOfCoreOnMachine)
+    #pragma omp parallel private(i) num_threads(getNumberOfCoreOnMachine())
     {
         #pragma omp for schedule(static) nowait
         for (i = 0; i < blocks; ++i) {
