@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
   std::cout << "------------------------" << std::endl;
   std::cout << "Average Time for sequential solution: " << totalSequentialTime/nbIterations << " sec" << std::endl;
-  std::cout << "Average Time for OpenMP solution: " << totalOpenMPTime/nbIterations << " sec" << std::endl;
+  std::cout << "Average Time for OpenMP solution with " << getNumberOfCoreOnMachine() << " cores used by OpenMP: "<<totalOpenMPTime/nbIterations << " sec" << std::endl;
 
   return 0;
 }
