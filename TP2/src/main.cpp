@@ -16,8 +16,8 @@ unsigned getNumberOfCoreOnMachine();
 const char* pathToImage;
 const char* pathToFilter;
 const char* pathToOutput;
-const int nbIterations;
-const int nbThreads;
+int nbIterations;
+int nbThreads;
 
 int main(int argc, char **argv) {
   double totalSequentialTime=0;
