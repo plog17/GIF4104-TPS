@@ -22,13 +22,13 @@ int nbThreads;
 int main(int argc, char **argv) {
   double totalSequentialTime=0;
   double totalOpenMPTime=0;
+  loadArguments(argc, argv);
+
   Chrono chrono(false);
 
-  for (int i=0; i<=nbIterations;++i){
+  for (int i=1; i<=nbIterations;++i){
       chrono.reset();
       chrono.resume();
-
-      loadArguments(argc, argv);
 
       PngImage exampleImg(pathToImage);
       Filter filter(pathToFilter);
@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
   }
 
   std::cout << "------------------------" << std::endl;
-  std::cout << "Average Time for sequential solution: " << totalSequentialTime/nbIterations << " sec" << std::endl;
   std::cout << "Average Time for OpenMP solution with " << nbThreads << " cores used by OpenMP: "<<totalOpenMPTime/nbIterations << " sec" << std::endl;
+  std::cout << "Average Time for sequential solution: " << totalSequentialTime/nbIterations << " sec" << std::endl;
 
   return 0;
 }
@@ -142,6 +142,13 @@ int loadArguments(int argc, char **argv) {
         pathToImage=argv[1];
         pathToFilter=argv[2];
         pathToOutput=argv[3];
+        nbThreads=getNumberOfCoreOnMachine();
+        nbIterations=1;
+    }
+    else if (argc==5){
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToOutput=argv[3];
         nbThreads=std::stoi(argv[4]);
         nbIterations=1;
     }
@@ -152,6 +159,14 @@ int loadArguments(int argc, char **argv) {
         nbThreads=std::stoi(argv[4]);
         nbIterations=std::stoi(argv[5]);
     }
+
+    std::cout<<"Execution TP2" << std::endl;
+    std::cout<<"Image: " << pathToImage << std::endl;
+    std::cout<<"Filtre: " << pathToFilter << std::endl;
+    std::cout<<"Sortie: " << pathToOutput << std::endl;
+    std::cout<<"Nombre coeur pour OpenMP: " << nbThreads << std::endl;
+    std::cout<<"Iterations: " << nbIterations << std::endl;
+    std::cout << "------------------------" << std::endl;
 }
 
 void usage(std::string inName) {
