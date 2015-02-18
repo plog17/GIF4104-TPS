@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include <ncursesw/ncurses.h>
+//#include <ncursesw/ncurses.h>
 #include "PngImage.h"
 #include "Filter.h"
 #include "Chrono.hpp"
