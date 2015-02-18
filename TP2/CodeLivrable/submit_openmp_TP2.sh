@@ -15,4 +15,4 @@ cd "${PBS_O_WORKDIR}"
 export OMP_NUM_THREADS=8
 
 # Programme à exécuter
-/home/user46/TP2_Livrable/CodeTest_NbThreads_NbIterations_Speciafiables/TP2 Image/landscape_hd.png filters/noyau_flou test.jpg 8 20
+/home/user46/TP2_Livrable/CodeLivrable/TP2 Image/exemple.png filters/noyau_flou test.jpg
