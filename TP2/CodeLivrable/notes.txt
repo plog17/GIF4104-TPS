@@ -1,0 +1,74 @@
+Data:
+
+Filtre avec noyau_flou seq = 1.8798 sec
+Filtre avec noyau_flou x pll = 1.05322 sec
+Filtre avec noyeau_flou x block et y for pll = 1.0796 sec
+"" but remove filter from shared = 0.978201 sec
+
+Filtre avec chaques bloques = 1.07501 sec
+Filtre avec les bloques dans un buffer different = 1.005
+Filtre sans le shared = 0.99
+
+Tests Avec Filtre par bloque avec un buffer different:
+
+-Ma machine
+1 thread :
+    2.09304 sec
+    2.08503 sec
+    2.08142 sec
+    2.07848 sec
+
+2 threads :
+    1.12068 sec
+    1.14402 sec
+    1.1202 sec
+
+3 threads :
+    1.1404 sec
+    1.13112 sec
+    1.12819 sec
+    1.08655 sec
+
+4 threads :
+    1.10465 sec
+    0.990729 sec
+    0.987639 sec
+    0.999781 sec
+
+10 threads :
+    0.985142 sec
+    0.987883 sec
+    0.981898 sec
+    0.993308 sec
+
+Colosse:
+
+1 thread :
+    1.89221 sec
+    1.89219 sec
+    1.89251 sec
+
+2 threads :
+    1.09182 sec
+    0.986921 sec
+    1.10638 sec
+
+4 threads :
+    0.5438
+    0.5446
+    0.4763
+
+6 threads :
+    0.37997 sec
+    0.337496 sec
+    0.364079 sec
+
+8 threads :
+    0.259191 sec
+    0.250185 sec
+    0.25051 sec
+
+16 threads :
+    0.287467 sec
+    0.270886 sec
+    0.294146 sec
