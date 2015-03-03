@@ -65,7 +65,12 @@ void invertSequential(Matrix& iA) {
 
 // Inverser la matrice par la méthode de Gauss-Jordan; implantation MPI parallèle.
 void invertParallel(Matrix& iA) {
-    // vous devez coder cette fonction
+	//tuto nice : http://mpitutorial.com/tutorials/mpi-broadcast-and-collective-communication/
+    //Verification M et carré et génération de la matrice identité
+	//reduce pour trouver le max de chaques colonnes + check for singularité
+	//swap ??
+	//reduce pour la division
+	//scatter les copies de rangés avec la multiplication et reduce pour la sum? nop
 }
 
 // Multiplier deux matrices.
