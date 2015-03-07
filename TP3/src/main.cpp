@@ -14,12 +14,12 @@ using namespace std;
 
 // Inverser la matrice par la méthode de Gauss-Jordan; implantation séquentielle.
 void invertSequential(Matrix& iA) {
-    
+
     // vérifier que la matrice est carrée
     assert(iA.rows() == iA.cols());
 	// construire la matrice [A I]
 	MatrixConcatCols lAI(iA, MatrixIdentity(iA.rows()));
-    
+
     // traiter chaque rangée
 	for (size_t k=0; k<iA.rows(); ++k) {
 		// trouver l'index p du plus grand pivot de la colonne k en valeur absolue
@@ -35,10 +35,10 @@ void invertSequential(Matrix& iA) {
 
         // vérifier que la matrice n'est pas singulière
 		if (lAI(p, k) == 0) throw runtime_error("Matrix not invertible");
-        
+
         // échanger la ligne courante avec celle du pivot
 		if (p != k) lAI.swapRows(p, k);
-        
+
 		double lValue = lAI(k, k);
 		for (size_t j=0; j<lAI.cols(); ++j) {
 			// On divise les éléments de la rangée k
@@ -46,7 +46,7 @@ void invertSequential(Matrix& iA) {
 			// Ainsi, lAI(k,k) deviendra égal à 1.
 			lAI(k, j) /= lValue;
 		}
-        
+
 		// Pour chaque rangée...
 		for (size_t i=0; i<lAI.rows(); ++i) {
 			if (i != k) { // ...différente de k
@@ -57,7 +57,7 @@ void invertSequential(Matrix& iA) {
 			}
 		}
 	}
-	
+
 	// On copie la partie droite de la matrice AI ainsi transformée
 	// dans la matrice courante (this).
 	for (unsigned int i=0; i<iA.rows(); ++i) {
@@ -98,7 +98,7 @@ void invertParallel(Matrix& iA) {
 
 // Multiplier deux matrices.
 Matrix multiplyMatrix(const Matrix& iMat1, const Matrix& iMat2) {
-    
+
     // vérifier la compatibilité des matrices
     assert(iMat1.cols() == iMat2.rows());
     // effectuer le produit matriciel
@@ -116,12 +116,14 @@ Matrix multiplyMatrix(const Matrix& iMat1, const Matrix& iMat2) {
 static int numprocs;
 
 int main(int argc, char** argv) {
-    
+
 	srand((unsigned)time(NULL));
 	double startTime, endTime;
 	double * send_buffer = NULL;
 	double * recv_buffer = NULL;
-	MatrixRandom* originalMatrix = NULL;
+	Matrix* originalMatrix = NULL;
+  Matrix* identity = NULL;
+  Matrix* augmented = NULL;
 	unsigned int lS = 3;
 
 	if (argc == 2) {
@@ -135,18 +137,22 @@ int main(int argc, char** argv) {
 
 	if(my_rank == 0){
 		originalMatrix = new MatrixRandom(lS, lS);
-		std::cout << "Original Matrix : " << std::endl << originalMatrix->str() << std::endl;
+    identity = new MatrixIdentity(lS);
+    augmented = new MatrixConcatCols(*originalMatrix,*identity);
+    std::cout << "Original Matrix : " << std::endl << augmented->str() << std::endl;
 	}
 
 	int processColumnQty = lS/numprocs;
 	Matrix dataMatrix(lS,processColumnQty);
 	recv_buffer = new double[lS];
 	send_buffer = new double[lS];
-	for(int i = 0; i < lS; ++i){
+
+  for(int i = 0; i < lS; ++i){
 		if(my_rank == 0){
 			for(int k = 0; k < lS; ++k)
 				send_buffer[k] = originalMatrix->getRowCopy(i)[k];
 		}
+
 		MPI_Scatter(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		for(int j = 0; j < processColumnQty; j++)
 			dataMatrix(i,j) = recv_buffer[j];
@@ -162,10 +168,13 @@ int main(int argc, char** argv) {
 		double swapIndex;
 		if (my_rank == processingRow) {
 			swapIndex = dataMatrix.getMaxRowIndex(0, processingRow);
+      cout<<"get max row index "<<swapIndex<<"-processing "<<processingRow<<endl;
 		}
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
-		if(swapIndex != processingRow) {
+
+    if(swapIndex != processingRow) {
 			dataMatrix.swapRows(processingRow, swapIndex);
+      cout<<"swap rows"<<swapIndex<<"-"<<processingRow<<endl;
 		}
 
 		//Calculate coefficient and send it
@@ -203,9 +212,16 @@ int main(int argc, char** argv) {
 	if(my_rank == 0) {
 		std::cout << "Time = " << endTime - startTime << std::endl;
 		std::cout << finaleMatrix.str() << std::endl;
+
+
+    // Matrix lRes = multiplyMatrix(originalMatrix, finaleMatrix);
+    // cout << "Produit des deux matrices:\n" << lRes.str() << endl;
+    // cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
 	}
 	MPI_Finalize ();
 
+
+
+
 	return 0;
 }
-

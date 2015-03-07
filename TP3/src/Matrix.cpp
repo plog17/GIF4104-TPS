@@ -16,7 +16,7 @@ Matrix& Matrix::swapRows(size_t iR1, size_t iR2) {
     // permuter les deux rangées
     valarray<double> lTmp(mData[slice(iR1*cols(), cols(), 1)]);
     mData[slice(iR1*cols(), cols(), 1)] = mData[slice(iR2*cols(), cols(), 1)];
-    mData[slice(iR2*cols(), cols(), 1)] = lTmp;        
+    mData[slice(iR2*cols(), cols(), 1)] = lTmp;
     return *this;
 }
 
@@ -29,14 +29,14 @@ Matrix& Matrix::swapColumns(size_t iC1, size_t iC2) {
     // permuter les deux rangées
     valarray<double> lTmp(mData[slice(iC1, rows(), cols())]);
     mData[slice(iC1, rows(), cols())] = mData[slice(iC2, rows(), cols())];
-    mData[slice(iC2, rows(), cols())] = lTmp;        
+    mData[slice(iC2, rows(), cols())] = lTmp;
     return *this;
 }
 
 // Représenter la matrice sous la forme d'une chaîne de caractères.
 // Pratique pour le débuggage...
-string Matrix::str(void) const {        
-    ostringstream oss;        
+string Matrix::str(void) const {
+    ostringstream oss;
     for (size_t i=0; i<rows(); ++i) {
         if (i == 0) oss << "[[ ";
         else oss << " [ ";
@@ -54,7 +54,7 @@ string Matrix::str(void) const {
 MatrixIdentity::MatrixIdentity(size_t iSize) : Matrix(iSize, iSize) {
     for (size_t i=0; i<iSize; ++i) {
         (*this)(i,i) = 1.0;
-    }        
+    }
 }
 
 // Construire une matrice aléatoire [0,1) iRows x iCols.

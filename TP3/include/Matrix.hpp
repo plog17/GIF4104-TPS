@@ -18,10 +18,12 @@
 class Matrix  {
 
 public:
+    // Construire matrice iRows x iCols et initialiser avec des 0.
+    Matrix() {}
 
     // Construire matrice iRows x iCols et initialiser avec des 0.
     Matrix(std::size_t iRows, std::size_t iCols) : mData(0., iRows*iCols), mRows(iRows), mCols(iCols) {}
-    
+
     // Affecter une matrice de même taille; s'assurer que les tailles sont identiques.
     Matrix& operator=(const Matrix& iMat) {
         assert(mRows == iMat.mRows && mCols == iMat.mCols);
@@ -33,7 +35,7 @@ public:
     inline double& operator()(std::size_t iRow, std::size_t iCol) {
         return mData[(iRow*mCols)+iCol];
     }
-    
+
     // Accéder à la case (i, j) en lecture seulement.
     inline const double& operator()(size_t iRow, size_t iCol) const {
         return mData[(iRow*mCols)+iCol];
@@ -41,7 +43,7 @@ public:
 
     // Retourner le nombre de colonnes.
     inline std::size_t cols(void) const { return mCols; }
-    
+
     // Retourner le nombre de lignes.
     inline std::size_t rows(void) const { return mRows; }
 
@@ -50,31 +52,31 @@ public:
         assert(iCol < mCols);
         return mData[std::slice(iCol, mRows, mCols)];
     }
-    
+
     // Retourner la slice d'une colonne de la matrice.
     std::slice_array<double> getColumnSlice(size_t iCol) {
         assert(iCol < mCols);
         return mData[std::slice(iCol, mRows, mCols)];
     }
-    
+
     // Retourner la slice d'une colonne de la matrice.
     const std::slice_array<double> getColumnSlice(size_t iCol) const {
         assert(iCol < mCols);
         return const_cast<Matrix*>(this)->mData[std::slice(iCol, mRows, mCols)];
     }
-   
+
     // Retourner le tableau d'une rangée de la matrice.
     std::valarray<double> getRowCopy(size_t iRow) const {
         assert(iRow < mRows);
         return mData[std::slice(iRow*mCols, mCols, 1)];
     }
-    
+
     // Retourner la slice d'une rangée de la matrice.
     std::slice_array<double> getRowSlice(size_t iRow) {
         assert(iRow < mRows);
         return mData[std::slice(iRow*mCols, mCols, 1)];
     }
-    
+
     // Retourner la slice d'une rangée de la matrice.
     const std::slice_array<double> getRowSlice(size_t iRow) const {
         assert(iRow < mRows);
@@ -82,16 +84,16 @@ public:
     }
 
     int getMaxRowIndex(int ColumnIndex, int rowOffset=0);
-    
+
     // Accéder au tableau interne de la matrice en lecture/écriture.
     std::valarray<double>& getDataArray(void) { return mData; }
-    
+
     // Accéder au tableau interne de la matrice en lecture seulement.
     const std::valarray<double>& getDataArray(void) const { return mData; }
-   
+
     // Permuter deux rangées de la matrice.
     Matrix& swapRows(size_t iR1, size_t iR2);
-    
+
     // Permuter deux colonnes de la matrice.
     Matrix& swapColumns(size_t iC1, size_t iC2);
 
