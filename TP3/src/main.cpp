@@ -210,13 +210,16 @@ int main(int argc, char** argv) {
 	MPI_Barrier(MPI_COMM_WORLD);
 	endTime = MPI_Wtime();
 	if(my_rank == 0) {
-		std::cout << "Time = " << endTime - startTime << std::endl;
-		std::cout << finaleMatrix.str() << std::endl;
 
+		// std::cout << finaleMatrix.str() << std::endl;
 
-    // Matrix lRes = multiplyMatrix(originalMatrix, finaleMatrix);
-    // cout << "Produit des deux matrices:\n" << lRes.str() << endl;
-    // cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
+    Matrix lRes = multiplyMatrix(*originalMatrix, finaleMatrix);
+    cout << "Produit des deux matrices:\n" << lRes.str() << endl;
+
+    // A fournir obligatoirement
+    std::cout << "Taille de la matrice = " << lS << "x" << lS << std::endl;
+    cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
+    std::cout << "Temps = " << endTime - startTime << std::endl;
 	}
 	MPI_Finalize ();
 
