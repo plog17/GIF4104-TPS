@@ -118,8 +118,12 @@ static int numprocs;
 int main(int argc, char** argv) {
     
 	srand((unsigned)time(NULL));
-    
-	unsigned int lS = 5;
+	double startTime, endTime;
+	double * send_buffer = NULL;
+	double * recv_buffer = NULL;
+	MatrixRandom* originalMatrix = NULL;
+	unsigned int lS = 3;
+
 	if (argc == 2) {
 		lS = atoi(argv[1]);
 	}
@@ -128,29 +132,78 @@ int main(int argc, char** argv) {
 	MPI_Init (&argc, &argv);
 	MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
 	MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
-	MatrixRandom lA(lS, lS);
 
 	if(my_rank == 0){
-		cout << "Matrice random:\n" << lA.str() << endl;
-
-		Matrix lB(lA);
-		double time_start = MPI_Wtime();
-		invertSequential(lB);
-		cout << "Matrice inverse seq:\n" << lB.str() << endl;
-		cout << "Teamps : " << MPI_Wtime() - time_start << std::endl;
-
-		Matrix lRes = multiplyMatrix(lA, lB);
-		cout << "Produit des deux matrices:\n" << lRes.str() << endl;
-
-		cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
+		originalMatrix = new MatrixRandom(lS, lS);
+		std::cout << "Original Matrix : " << std::endl << originalMatrix->str() << std::endl;
 	}
 
+	int processColumnQty = lS/numprocs;
+	Matrix dataMatrix(lS,processColumnQty);
+	recv_buffer = new double[lS];
+	send_buffer = new double[lS];
+	for(int i = 0; i < lS; ++i){
+		if(my_rank == 0){
+			for(int k = 0; k < lS; ++k)
+				send_buffer[k] = originalMatrix->getRowCopy(i)[k];
+		}
+		MPI_Scatter(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		for(int j = 0; j < processColumnQty; j++)
+			dataMatrix(i,j) = recv_buffer[j];
+	}
 
-	Matrix lC(lA);
-	invertParallel(lC);
-	cout << "Matrice inverse pll:\n" << lC.str() << endl;
+	// Begin timing.
+	MPI_Barrier(MPI_COMM_WORLD);
+	startTime = MPI_Wtime();
 
+	int processingRow = 0;
 
+	for(int i = 0; i < lS; ++i) {
+		double swapIndex;
+		if (my_rank == processingRow) {
+			swapIndex = dataMatrix.getMaxRowIndex(0, processingRow);
+		}
+		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
+		if(swapIndex != processingRow) {
+			dataMatrix.swapRows(processingRow, swapIndex);
+		}
+
+		//Calculate coefficient and send it
+		if(my_rank == processingRow){
+			for(int j = processingRow; j < lS; j++)
+				send_buffer[j] = dataMatrix(0, j) / dataMatrix(0, processingRow);
+		}
+		MPI_Bcast(send_buffer, lS, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
+		for(int j = 0; j < processColumnQty; j++) {
+			for(int k = processingRow + 1; k < lS; k++) {
+				dataMatrix(j, k) -= dataMatrix(j, processingRow) * send_buffer[k];
+			}
+		}
+
+		processingRow++;
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
+
+	send_buffer = new double[processColumnQty];
+	recv_buffer = new double[processColumnQty*numprocs];
+	Matrix finaleMatrix(lS, lS);
+	for(int i = 0; i < lS; ++i) {
+		for (int j = 0; j < processColumnQty; ++j) {
+			send_buffer[j] = dataMatrix(i,j);
+		}
+		MPI_Gather(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		if(my_rank == 0){
+			for(int j = 0; j < finaleMatrix.cols(); ++j)
+				finaleMatrix(i,j) = recv_buffer[j];
+		}
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	endTime = MPI_Wtime();
+	if(my_rank == 0) {
+		std::cout << "Time = " << endTime - startTime << std::endl;
+		std::cout << finaleMatrix.str() << std::endl;
+	}
 	MPI_Finalize ();
 
 	return 0;

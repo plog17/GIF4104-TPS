@@ -80,6 +80,8 @@ public:
         assert(iRow < mRows);
         return const_cast<Matrix*>(this)->mData[std::slice(iRow*mCols, mCols, 1)];
     }
+
+    int getMaxRowIndex(int ColumnIndex, int rowOffset=0);
     
     // Accéder au tableau interne de la matrice en lecture/écriture.
     std::valarray<double>& getDataArray(void) { return mData; }

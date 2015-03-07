@@ -96,3 +96,15 @@ ostream& operator<<(ostream& oStream, const Matrix& iMat) {
     oStream << iMat.str();
     return oStream;
 }
+
+int Matrix::getMaxRowIndex(int ColumnIndex, int rowOffset) {
+    double max = this->mData[(rowOffset * this->mCols) + ColumnIndex];
+    int index = rowOffset;
+    for(int i = rowOffset; i < this->mRows; ++i){
+        if(mData[(i * this->mCols) + ColumnIndex] > max){
+            index = i;
+            max = mData[(i * this->mCols) + ColumnIndex];
+        }
+    }
+    return index;
+}
