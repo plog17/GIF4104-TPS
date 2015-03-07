@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   for(int i = 0; i < lS; ++i){
 		if(my_rank == 0){
 			for(int k = 0; k < lS; ++k)
-				send_buffer[k] = originalMatrix->getRowCopy(i)[k];
+				send_buffer[k] = augmented->getRowCopy(i)[k];
 		}
 
 		MPI_Scatter(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -158,16 +158,16 @@ int main(int argc, char** argv) {
 			dataMatrix(i,j) = recv_buffer[j];
 	}
 
-	// Begin timing.
+	// Debut temps
 	MPI_Barrier(MPI_COMM_WORLD);
 	startTime = MPI_Wtime();
 
 	int processingRow = 0;
-
+  int offset = 0;
 	for(int i = 0; i < lS; ++i) {
 		double swapIndex;
 		if (my_rank == processingRow) {
-			swapIndex = dataMatrix.getMaxRowIndex(0, processingRow);
+			swapIndex = dataMatrix.getMaxRowIndex(offset, processingRow);
       cout<<"get max row index "<<swapIndex<<"-processing "<<processingRow<<endl;
 		}
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
@@ -177,10 +177,10 @@ int main(int argc, char** argv) {
       cout<<"swap rows"<<swapIndex<<"-"<<processingRow<<endl;
 		}
 
-		//Calculate coefficient and send it
+		//Calculer pivot et envoie
 		if(my_rank == processingRow){
 			for(int j = processingRow; j < lS; j++)
-				send_buffer[j] = dataMatrix(0, j) / dataMatrix(0, processingRow);
+				send_buffer[j] = dataMatrix(offset, j) / dataMatrix(offset, processingRow);
 		}
 		MPI_Bcast(send_buffer, lS, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
 		for(int j = 0; j < processColumnQty; j++) {
@@ -188,6 +188,10 @@ int main(int argc, char** argv) {
 				dataMatrix(j, k) -= dataMatrix(j, processingRow) * send_buffer[k];
 			}
 		}
+
+    if(my_rank == 0){
+      offset++;
+    }
 
 		processingRow++;
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -211,10 +215,10 @@ int main(int argc, char** argv) {
 	endTime = MPI_Wtime();
 	if(my_rank == 0) {
 
-		// std::cout << finaleMatrix.str() << std::endl;
+		std::cout << finaleMatrix.str() << std::endl;
 
     Matrix lRes = multiplyMatrix(*originalMatrix, finaleMatrix);
-    cout << "Produit des deux matrices:\n" << lRes.str() << endl;
+    // cout << "Produit des deux matrices:\n" << lRes.str() << endl;
 
     // A fournir obligatoirement
     std::cout << "Taille de la matrice = " << lS << "x" << lS << std::endl;
