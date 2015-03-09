@@ -142,24 +142,32 @@ int main(int argc, char** argv) {
     std::cout << "Original Matrix : " << std::endl << augmented->str() << std::endl;
 	}
 
-	int processColumnQty = lS/numprocs;
+	int processColumnQty = 2*lS/numprocs;
+
+
 	Matrix dataMatrix(lS,processColumnQty);
-	recv_buffer = new double[lS];
-	send_buffer = new double[lS];
+	recv_buffer = new double[2*lS];
+	send_buffer = new double[2*lS];
 
   for(int i = 0; i < lS; ++i){
 		if(my_rank == 0){
-			for(int k = 0; k < lS; ++k)
-				send_buffer[k] = augmented->getRowCopy(i)[k];
+			for(int k = 0; k < (2*lS); ++k){
+        send_buffer[k] = augmented->getRowCopy(i)[k];
+      }
 		}
 
 		MPI_Scatter(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		for(int j = 0; j < processColumnQty; j++)
-			dataMatrix(i,j) = recv_buffer[j];
+		for(int j = 0; j < processColumnQty; j++){
+      // dataMatrix(j,i) = recv_buffer[j];
+       dataMatrix(i,j) = recv_buffer[j];
+    }
 	}
 
 	// Debut temps
 	MPI_Barrier(MPI_COMM_WORLD);
+
+  cout<<"dataMatrix: "<<dataMatrix.str()<<endl;
+
 	startTime = MPI_Wtime();
 
 	int processingRow = 0;
@@ -170,20 +178,28 @@ int main(int argc, char** argv) {
 			swapIndex = dataMatrix.getMaxRowIndex(offset, processingRow);
       cout<<"get max row index "<<swapIndex<<"-processing "<<processingRow<<endl;
 		}
+
+    //broadcast ligne a swaper potentiellement
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
 
+    //validation quon ne swap pas la ligne avec la ligne elle meme
     if(swapIndex != processingRow) {
+      cout<<dataMatrix.str()<<endl;
 			dataMatrix.swapRows(processingRow, swapIndex);
-      cout<<"swap rows"<<swapIndex<<"-"<<processingRow<<endl;
-		}
+      cout<<dataMatrix.str()<<endl;
+  	}
 
-		//Calculer pivot et envoie
+		//Calculer pivot si bon process
 		if(my_rank == processingRow){
 			for(int j = processingRow; j < lS; j++)
 				send_buffer[j] = dataMatrix(offset, j) / dataMatrix(offset, processingRow);
 		}
+
+    //envoie buffer
 		MPI_Bcast(send_buffer, lS, MPI_DOUBLE, processingRow, MPI_COMM_WORLD);
-		for(int j = 0; j < processColumnQty; j++) {
+
+    //modification des donnees selon lenvoie
+    for(int j = 0; j < processColumnQty; j++) {
 			for(int k = processingRow + 1; k < lS; k++) {
 				dataMatrix(j, k) -= dataMatrix(j, processingRow) * send_buffer[k];
 			}
@@ -194,12 +210,16 @@ int main(int argc, char** argv) {
     }
 
 		processingRow++;
+    if(processingRow == numprocs){
+      processingRow=0;
+    }
+
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 	send_buffer = new double[processColumnQty];
 	recv_buffer = new double[processColumnQty*numprocs];
-	Matrix finaleMatrix(lS, lS);
+	Matrix finaleMatrix(lS, 2*lS);
 	for(int i = 0; i < lS; ++i) {
 		for (int j = 0; j < processColumnQty; ++j) {
 			send_buffer[j] = dataMatrix(i,j);
@@ -211,10 +231,14 @@ int main(int argc, char** argv) {
 		}
 	}
 
+  //arret timing
 	MPI_Barrier(MPI_COMM_WORLD);
 	endTime = MPI_Wtime();
+
+
 	if(my_rank == 0) {
 
+    std::cout << originalMatrix->str() << std::endl;
 		std::cout << finaleMatrix.str() << std::endl;
 
     Matrix lRes = multiplyMatrix(*originalMatrix, finaleMatrix);
@@ -225,10 +249,7 @@ int main(int argc, char** argv) {
     cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
     std::cout << "Temps = " << endTime - startTime << std::endl;
 	}
+
 	MPI_Finalize ();
-
-
-
-
 	return 0;
 }
