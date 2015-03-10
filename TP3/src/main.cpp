@@ -137,7 +137,6 @@ int main(int argc, char** argv) {
 
 	if(my_rank == 0){
 		originalMatrix = new MatrixRandom(lS, lS);
-		identity = new MatrixIdentity(lS);
 	}
 
 	int processColumnQty = lS/numprocs;
@@ -156,10 +155,10 @@ int main(int argc, char** argv) {
 
 		MPI_Scatter(send_buffer, processColumnQty, MPI_DOUBLE, recv_buffer, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		for(int j = 0; j < processColumnQty; j++){
-			// dataMatrix(j,i) = recv_buffer[j];
 			dataMatrix(i,j) = recv_buffer[j];
 		}
 	}
+
 
 	// Debut temps
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -167,12 +166,11 @@ int main(int argc, char** argv) {
 
 	int control_proc = 0;
   	int offset = 0;
+	//boucle de calcul de la matrice inverse
 	for(int currentRow = 0; currentRow < lS; ++currentRow) {
 		double swapIndex;
 		if (my_rank == control_proc) {
 			swapIndex = dataMatrix.getMaxRowIndex(offset, currentRow);
-      		//cout<<"index : "<<dataMatrix(swapIndex, offset)<<"  -Proc = "<< control_proc << endl;
-			//cout << "offset = " << offset << std::endl;
 		}
 
    	 	//broadcast ligne a swaper potentiellement
@@ -190,16 +188,16 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		//envoie buffer
+		//Broadcast des coéficients pour chaque rangés
 		MPI_Bcast(send_buffer, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
-		//modification des donnees selon lenvoie
+		//modification des rangés dans chaques process
 		for(int y = currentRow + 1; y < lS; ++y) {
 			for(int x = 0; x < processColumnQty; ++x) {
 				dataMatrix(y, x) -= dataMatrix(currentRow, x) * send_buffer[y];
 			}
 		}
-
+		// met à jours le process contrôleur actuel et la colonne du pivot (offset)
 		if (offset == processColumnQty - 1) {
 			control_proc++;
 			offset = 0;
@@ -208,7 +206,8 @@ int main(int argc, char** argv) {
 			offset++;
 		}
 	}
-
+	delete[] recv_buffer;
+	delete[] send_buffer;
 	send_buffer = new double[processColumnQty];
 	recv_buffer = new double[processColumnQty*numprocs];
 	Matrix finaleMatrix(lS, lS);
