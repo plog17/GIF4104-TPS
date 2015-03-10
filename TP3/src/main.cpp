@@ -185,8 +185,8 @@ int main(int argc, char** argv) {
 
 		//Calculer pivot si bon process
 		if(my_rank == control_proc){
-			for(int y = currentRow; y < lS; y++) {
-				send_buffer[y] = dataMatrix(offset, y) / dataMatrix(offset, currentRow);
+			for(int y = currentRow; y < lS; ++y) {
+				send_buffer[y] = dataMatrix(y, offset) / dataMatrix(currentRow, offset);
 			}
 		}
 
@@ -194,9 +194,9 @@ int main(int argc, char** argv) {
 		MPI_Bcast(send_buffer, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
 		//modification des donnees selon lenvoie
-		for(int y = currentRow + 1; y < lS; y++) {
-			for(int x = 0; x < processColumnQty; x++) {
-				dataMatrix(x, y) -= dataMatrix(x, currentRow) * send_buffer[y];
+		for(int y = currentRow + 1; y < lS; ++y) {
+			for(int x = 0; x < processColumnQty; ++x) {
+				dataMatrix(y, x) -= dataMatrix(currentRow, x) * send_buffer[y];
 			}
 		}
 
