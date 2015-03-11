@@ -160,8 +160,6 @@ int main(int argc, char** argv) {
 	}
 
   int useableProcs = getNbOfPUseableProcs(lS,numprocs);
-  cout<<useableProcs<<endl;
-
 	int processColumnQty = lS/useableProcs;
 
 	Matrix dataMatrix(lS,processColumnQty);
