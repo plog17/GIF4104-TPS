@@ -59,6 +59,8 @@ void invertSequential(Matrix& iA) {
 		}
 	}
 
+    std::cout << "=========================" << std::endl;
+    std::cout << lAI.str() << std::endl;
 	// On copie la partie droite de la matrice AI ainsi transformée
 	// dans la matrice courante (this).
 	for (unsigned int i=0; i<iA.rows(); ++i) {
@@ -132,17 +134,17 @@ int main(int argc, char** argv) {
 	double startTime, endTime;
 	double * send_buffer_matrix = NULL;
 	double * recv_buffer_matrix = NULL;
-  double * send_buffer_identity = NULL;
-  double * recv_buffer_identity = NULL;
+	double * send_buffer_identity = NULL;
+	double * recv_buffer_identity = NULL;
 	Matrix* originalMatrix = NULL;
 	Matrix* identity = NULL;
 	Matrix* augmented = NULL;
 	unsigned int lS = 3;
 
-  startTime = MPI_Wtime();
+	startTime = MPI_Wtime();
 
 
-  if (argc == 2) {
+	if (argc == 2) {
 		lS = atoi(argv[1]);
 	}
 
@@ -159,15 +161,15 @@ int main(int argc, char** argv) {
     identity = new MatrixIdentity(lS);
 	}
 
-  int useableProcs = getNbOfPUseableProcs(lS,numprocs);
+	int useableProcs = getNbOfPUseableProcs(lS,numprocs);
 	int processColumnQty = lS/useableProcs;
 
 	Matrix dataMatrix(lS,processColumnQty);
-  Matrix dataIdentityMatrix(lS,processColumnQty);
+	Matrix dataIdentityMatrix(lS,processColumnQty);
 	recv_buffer_matrix = new double[lS];
 	send_buffer_matrix = new double[lS];
-  recv_buffer_identity = new double[lS];
-  send_buffer_identity = new double[lS];
+	recv_buffer_identity = new double[lS];
+	send_buffer_identity = new double[lS];
 
 	for(int i = 0; i < lS; ++i){
 		if(my_rank == 0){
@@ -177,12 +179,12 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		MPI_Scatter(send_buffer_matrix, processColumnQty, MPI_DOUBLE, recv_buffer_matrix, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Scatter(send_buffer_matrix, processColumnQty, MPI_DOUBLE, recv_buffer_matrix, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Scatter(send_buffer_identity, processColumnQty, MPI_DOUBLE, recv_buffer_identity, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 		for(int j = 0; j < processColumnQty; j++){
 			dataMatrix(i,j) = recv_buffer_matrix[j];
-      dataIdentityMatrix(i,j) = recv_buffer_identity[j];
+      		dataIdentityMatrix(i,j) = recv_buffer_identity[j];
 		}
 	}
 
@@ -192,7 +194,7 @@ int main(int argc, char** argv) {
 
 
 	int control_proc = 0;
-  int offset = 0;
+  	int offset = 0;
 	//boucle de calcul de la matrice inverse
 	for(int currentRow = 0; currentRow < lS; ++currentRow) {
 		double swapIndex;
@@ -206,28 +208,41 @@ int main(int argc, char** argv) {
     	//validation quon ne swap pas la ligne avec la ligne elle meme
 		if(swapIndex != currentRow) {
 			dataMatrix.swapRows(currentRow, swapIndex);
-      dataIdentityMatrix.swapRows(currentRow, swapIndex);
+			dataIdentityMatrix.swapRows(currentRow, swapIndex);
 		}
+
+        double pivot = 0;
+        if(my_rank == control_proc){
+            pivot = dataMatrix(currentRow, offset);
+        }
+
+        MPI_Bcast(&pivot, 1, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
+
+        for(int i = 0; i < processColumnQty; ++i){
+            dataMatrix(currentRow, i) /= pivot;
+            dataIdentityMatrix(currentRow, i) /= pivot;
+        }
 
 		//Calculer pivot si bon process
 		if(my_rank == control_proc){
-			for(int y = currentRow; y < lS; ++y) {
-				send_buffer_matrix[y] = dataMatrix(y, offset) / dataMatrix(currentRow, offset);
-        //send_buffer_identity[y] = dataIdentityMatrix(y, offset) / dataIdentityMatrix(currentRow, offset);
+			for(int y = 0; y < lS; ++y) {
+                send_buffer_matrix[y] = dataMatrix(y, offset) / dataMatrix(currentRow, offset);
 			}
 		}
 
 		//Broadcast des coefficients pour chaque rangés
 		MPI_Bcast(send_buffer_matrix, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
-    MPI_Bcast(send_buffer_identity, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
 		//modification des rangées dans chaques process
-		for(int y = currentRow + 1; y < lS; ++y) {
+		for(int y = 0; y < lS; ++y) {
 			for(int x = 0; x < processColumnQty; ++x) {
-				dataMatrix(y, x) -= dataMatrix(currentRow, x) * send_buffer_matrix[y];
-        dataIdentityMatrix(y, x) -= dataIdentityMatrix(currentRow, x) * send_buffer_matrix[y];
+                if( currentRow != y) {
+                    dataMatrix(y, x) -= dataMatrix(currentRow, x) * send_buffer_matrix[y];
+                    dataIdentityMatrix(y, x) -= dataIdentityMatrix(currentRow, x) * send_buffer_matrix[y];
+                }
 			}
 		}
+
 		// met à jours le process contrôleur actuel et la colonne du pivot (offset)
 		if (offset == processColumnQty - 1) {
 			control_proc++;
@@ -239,29 +254,29 @@ int main(int argc, char** argv) {
 	}
 	delete[] recv_buffer_matrix;
 	delete[] send_buffer_matrix;
-  delete[] recv_buffer_identity;
-  delete[] send_buffer_identity;
+	delete[] recv_buffer_identity;
+	delete[] send_buffer_identity;
 	send_buffer_matrix = new double[processColumnQty];
 	recv_buffer_matrix = new double[processColumnQty*numprocs];
-  send_buffer_identity = new double[processColumnQty];
-  recv_buffer_identity = new double[processColumnQty*numprocs];
+	send_buffer_identity = new double[processColumnQty];
+	recv_buffer_identity = new double[processColumnQty*numprocs];
 
-  Matrix finaleMatrix(lS, lS);
-  Matrix finaleIdentity(lS, lS);
+	Matrix finaleMatrix(lS, lS);
+	Matrix finaleIdentity(lS, lS);
 
 	for(int i = 0; i < lS; ++i) {
 		for (int j = 0; j < processColumnQty; ++j) {
 			send_buffer_matrix[j] = dataMatrix(i,j);
-      send_buffer_identity[j] = dataIdentityMatrix(i,j);
+      		send_buffer_identity[j] = dataIdentityMatrix(i,j);
 		}
 		MPI_Gather(send_buffer_matrix, processColumnQty, MPI_DOUBLE, recv_buffer_matrix, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Gather(send_buffer_identity, processColumnQty, MPI_DOUBLE, recv_buffer_identity, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Gather(send_buffer_identity, processColumnQty, MPI_DOUBLE, recv_buffer_identity, processColumnQty, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 		if(my_rank == 0){
 			for(int j = 0; j < finaleMatrix.cols(); ++j){
 				finaleMatrix(i,j) = recv_buffer_matrix[j];
-        finaleIdentity(i,j) = recv_buffer_identity[j];
-      }
+				finaleIdentity(i,j) = recv_buffer_identity[j];
+			}
 		}
 	}
 
@@ -272,9 +287,11 @@ int main(int argc, char** argv) {
 
 	if(my_rank == 0) {
 
-		//std::cout << originalMatrix->str() << std::endl;
-		//std::cout << finaleMatrix.str() << std::endl;
-    //std::cout << finaleIdentity.str() << std::endl;
+		std::cout << originalMatrix->str() << std::endl;
+		std::cout << "========================" << std::endl;
+		std::cout << finaleMatrix.str() << std::endl;
+		std::cout << "========================" << std::endl;
+        std::cout << finaleIdentity.str() << std::endl;
 
 		Matrix lRes = multiplyMatrix(*originalMatrix, finaleIdentity);
 		// cout << "Produit des deux matrices:\n" << lRes.str() << endl;
@@ -285,17 +302,17 @@ int main(int argc, char** argv) {
 		std::cout << "Temps parallele= " << endTime - startTime << std::endl;
 
 
-    //comparaison avec code sequentiel
-    startTime = MPI_Wtime();
+		//comparaison avec code sequentiel
+		startTime = MPI_Wtime();
 
-  	MatrixRandom lA(lS, lS);
-    Matrix lB(lA);
-    invertSequential(lB);
-    Matrix lResSeq = multiplyMatrix(lA, lB);
-    cout << "Erreur: " << lResSeq.getDataArray().sum() - lS << endl;
-    endTime = MPI_Wtime();
-    std::cout << "Temps sequentiel= " << endTime - startTime << std::endl;
-  }
+		MatrixRandom lA(lS, lS);
+		Matrix lB(lA);
+		invertSequential(lB);
+		Matrix lResSeq = multiplyMatrix(lA, lB);
+		cout << "Erreur: " << lResSeq.getDataArray().sum() - lS << endl;
+		endTime = MPI_Wtime();
+		std::cout << "Temps sequentiel= " << endTime - startTime << std::endl;
+	}
 	MPI_Finalize ();
 	return 0;
 }
