@@ -138,17 +138,13 @@ int main(int argc, char** argv) {
 	double * recv_buffer_identity = NULL;
 	Matrix* originalMatrix = NULL;
 	Matrix* identity = NULL;
-	Matrix* augmented = NULL;
 	unsigned int lS = 3;
 
 	startTime = MPI_Wtime();
 
-
 	if (argc == 2) {
 		lS = atoi(argv[1]);
 	}
-
-
 
 	int my_rank;
 	MPI_Status status;
@@ -156,14 +152,16 @@ int main(int argc, char** argv) {
 	MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
 	MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
 
+    //génération des matrices originals par root
 	if(my_rank == 0){
 		originalMatrix = new MatrixRandom(lS, lS);
-    identity = new MatrixIdentity(lS);
+        identity = new MatrixIdentity(lS);
 	}
 
 	int useableProcs = getNbOfPUseableProcs(lS,numprocs);
 	int processColumnQty = lS/useableProcs;
 
+    //allocation de la mémoire
 	Matrix dataMatrix(lS,processColumnQty);
 	Matrix dataIdentityMatrix(lS,processColumnQty);
 	recv_buffer_matrix = new double[lS];
@@ -171,11 +169,12 @@ int main(int argc, char** argv) {
 	recv_buffer_identity = new double[lS];
 	send_buffer_identity = new double[lS];
 
+    //dispercion des deux matrices dans les processus. Les informations sont envoyé par colonnes
 	for(int i = 0; i < lS; ++i){
 		if(my_rank == 0){
 			for(int k = 0; k < (lS); ++k){
 				send_buffer_matrix[k] = originalMatrix->getRowCopy(i)[k];
-        send_buffer_identity[k] = identity->getRowCopy(i)[k];
+                send_buffer_identity[k] = identity->getRowCopy(i)[k];
 			}
 		}
 
@@ -188,10 +187,9 @@ int main(int argc, char** argv) {
 		}
 	}
 
-
 	// Debut temps
 	MPI_Barrier(MPI_COMM_WORLD);
-
+    startTime = MPI_Wtime();
 
 	int control_proc = 0;
   	int offset = 0;
@@ -202,7 +200,7 @@ int main(int argc, char** argv) {
 			swapIndex = dataMatrix.getMaxRowIndex(offset, currentRow);
 		}
 
-   	//broadcast ligne a swaper potentiellement
+   	    //broadcast la ligne à swaper potentiellement
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
     	//validation quon ne swap pas la ligne avec la ligne elle meme
