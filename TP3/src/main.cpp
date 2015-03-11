@@ -12,6 +12,7 @@
 
 using namespace std;
 
+
 // Inverser la matrice par la méthode de Gauss-Jordan; implantation séquentielle.
 void invertSequential(Matrix& iA) {
 
@@ -128,7 +129,10 @@ int main(int argc, char** argv) {
 	Matrix* augmented = NULL;
 	unsigned int lS = 3;
 
-	if (argc == 2) {
+  startTime = MPI_Wtime();
+
+
+  if (argc == 2) {
 		lS = atoi(argv[1]);
 	}
 	int my_rank;
@@ -172,10 +176,10 @@ int main(int argc, char** argv) {
 
 	// Debut temps
 	MPI_Barrier(MPI_COMM_WORLD);
-	startTime = MPI_Wtime();
+
 
 	int control_proc = 0;
-  	int offset = 0;
+  int offset = 0;
 	//boucle de calcul de la matrice inverse
 	for(int currentRow = 0; currentRow < lS; ++currentRow) {
 		double swapIndex;
@@ -183,7 +187,7 @@ int main(int argc, char** argv) {
 			swapIndex = dataMatrix.getMaxRowIndex(offset, currentRow);
 		}
 
-   	 	//broadcast ligne a swaper potentiellement
+   	//broadcast ligne a swaper potentiellement
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
     	//validation quon ne swap pas la ligne avec la ligne elle meme
@@ -196,6 +200,7 @@ int main(int argc, char** argv) {
 		if(my_rank == control_proc){
 			for(int y = currentRow; y < lS; ++y) {
 				send_buffer_matrix[y] = dataMatrix(y, offset) / dataMatrix(currentRow, offset);
+        //send_buffer_identity[y] = dataIdentityMatrix(y, offset) / dataIdentityMatrix(currentRow, offset);
 			}
 		}
 
@@ -203,11 +208,11 @@ int main(int argc, char** argv) {
 		MPI_Bcast(send_buffer_matrix, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
     MPI_Bcast(send_buffer_identity, lS, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
-		//modification des rangés dans chaques process
+		//modification des rangées dans chaques process
 		for(int y = currentRow + 1; y < lS; ++y) {
 			for(int x = 0; x < processColumnQty; ++x) {
 				dataMatrix(y, x) -= dataMatrix(currentRow, x) * send_buffer_matrix[y];
-        dataIdentityMatrix(y, x) -= dataIdentityMatrix(currentRow, x) * send_buffer_identity[y];
+        dataIdentityMatrix(y, x) -= dataIdentityMatrix(currentRow, x) * send_buffer_matrix[y];
 			}
 		}
 		// met à jours le process contrôleur actuel et la colonne du pivot (offset)
@@ -254,8 +259,9 @@ int main(int argc, char** argv) {
 
 	if(my_rank == 0) {
 
-		std::cout << originalMatrix->str() << std::endl;
-		std::cout << finaleIdentity.str() << std::endl;
+		//std::cout << originalMatrix->str() << std::endl;
+		//std::cout << finaleMatrix.str() << std::endl;
+    //std::cout << finaleIdentity.str() << std::endl;
 
 		Matrix lRes = multiplyMatrix(*originalMatrix, finaleIdentity);
 		// cout << "Produit des deux matrices:\n" << lRes.str() << endl;
@@ -263,9 +269,20 @@ int main(int argc, char** argv) {
 		// A fournir obligatoirement
 		std::cout << "Taille de la matrice = " << lS << "x" << lS << std::endl;
 		cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
-		std::cout << "Temps = " << endTime - startTime << std::endl;
-	}
+		std::cout << "Temps parallele= " << endTime - startTime << std::endl;
 
+
+    //comparaison avec code sequentiel
+    startTime = MPI_Wtime();
+
+  	MatrixRandom lA(lS, lS);
+    Matrix lB(lA);
+    invertSequential(lB);
+    Matrix lResSeq = multiplyMatrix(lA, lB);
+    cout << "Erreur: " << lResSeq.getDataArray().sum() - lS << endl;
+    endTime = MPI_Wtime();
+    std::cout << "Temps sequentiel= " << endTime - startTime << std::endl;
+  }
 	MPI_Finalize ();
 	return 0;
 }
