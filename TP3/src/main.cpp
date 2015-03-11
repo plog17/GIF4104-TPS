@@ -58,9 +58,6 @@ void invertSequential(Matrix& iA) {
 			}
 		}
 	}
-
-    std::cout << "=========================" << std::endl;
-    std::cout << lAI.str() << std::endl;
 	// On copie la partie droite de la matrice AI ainsi transformée
 	// dans la matrice courante (this).
 	for (unsigned int i=0; i<iA.rows(); ++i) {
@@ -187,28 +184,27 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// Debut temps
+	// ===================Commence l'inversion===========================
 	MPI_Barrier(MPI_COMM_WORLD);
-    startTime = MPI_Wtime();
 
 	int control_proc = 0;
   	int offset = 0;
 	//boucle de calcul de la matrice inverse
 	for(int currentRow = 0; currentRow < lS; ++currentRow) {
 		double swapIndex;
+        //-------------------changement des rangées ayant le plus grand pivot---------------------
 		if (my_rank == control_proc) {
 			swapIndex = dataMatrix.getMaxRowIndex(offset, currentRow);
 		}
 
-   	    //broadcast la ligne à swaper potentiellement
 		MPI_Bcast(&swapIndex, 1, MPI_DOUBLE, control_proc, MPI_COMM_WORLD);
 
-    	//validation quon ne swap pas la ligne avec la ligne elle meme
 		if(swapIndex != currentRow) {
 			dataMatrix.swapRows(currentRow, swapIndex);
 			dataIdentityMatrix.swapRows(currentRow, swapIndex);
 		}
 
+        //-------------------Division des pivots---------------------
         double pivot = 0;
         if(my_rank == control_proc){
             pivot = dataMatrix(currentRow, offset);
@@ -221,7 +217,8 @@ int main(int argc, char** argv) {
             dataIdentityMatrix(currentRow, i) /= pivot;
         }
 
-		//Calculer pivot si bon process
+        //----------------Soustraction des lignes-----------------
+		//calcule des coéficients de multiplication
 		if(my_rank == control_proc){
 			for(int y = 0; y < lS; ++y) {
                 send_buffer_matrix[y] = dataMatrix(y, offset) / dataMatrix(currentRow, offset);
@@ -241,7 +238,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		// met à jours le process contrôleur actuel et la colonne du pivot (offset)
+        //----------------Mise à jour du processus controleur et de l'index de la colonne pivot-----------------
 		if (offset == processColumnQty - 1) {
 			control_proc++;
 			offset = 0;
@@ -261,7 +258,7 @@ int main(int argc, char** argv) {
 
 	Matrix finaleMatrix(lS, lS);
 	Matrix finaleIdentity(lS, lS);
-
+    //----------------Récupération des matrices-----------------
 	for(int i = 0; i < lS; ++i) {
 		for (int j = 0; j < processColumnQty; ++j) {
 			send_buffer_matrix[j] = dataMatrix(i,j);
@@ -281,35 +278,13 @@ int main(int argc, char** argv) {
   //arret timing
 	MPI_Barrier(MPI_COMM_WORLD);
 	endTime = MPI_Wtime();
-
-
+    
 	if(my_rank == 0) {
-
-		std::cout << originalMatrix->str() << std::endl;
-		std::cout << "========================" << std::endl;
-		std::cout << finaleMatrix.str() << std::endl;
-		std::cout << "========================" << std::endl;
-        std::cout << finaleIdentity.str() << std::endl;
-
 		Matrix lRes = multiplyMatrix(*originalMatrix, finaleIdentity);
-		// cout << "Produit des deux matrices:\n" << lRes.str() << endl;
-
 		// A fournir obligatoirement
 		std::cout << "Taille de la matrice = " << lS << "x" << lS << std::endl;
 		cout << "Erreur: " << lRes.getDataArray().sum() - lS << endl;
 		std::cout << "Temps parallele= " << endTime - startTime << std::endl;
-
-
-		//comparaison avec code sequentiel
-		startTime = MPI_Wtime();
-
-		MatrixRandom lA(lS, lS);
-		Matrix lB(lA);
-		invertSequential(lB);
-		Matrix lResSeq = multiplyMatrix(lA, lB);
-		cout << "Erreur: " << lResSeq.getDataArray().sum() - lS << endl;
-		endTime = MPI_Wtime();
-		std::cout << "Temps sequentiel= " << endTime - startTime << std::endl;
 	}
 	MPI_Finalize ();
 	return 0;
