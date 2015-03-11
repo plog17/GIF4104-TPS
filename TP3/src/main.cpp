@@ -114,6 +114,16 @@ Matrix multiplyMatrix(const Matrix& iMat1, const Matrix& iMat2) {
     return lRes;
 }
 
+
+int getNbOfPUseableProcs(int rows, int nbProcs){
+  for(int i = nbProcs; i>0; i--){
+    if((rows%i)==0){
+      return i;
+    }
+  }
+  return -1;
+}
+
 static int numprocs;
 
 int main(int argc, char** argv) {
@@ -135,6 +145,9 @@ int main(int argc, char** argv) {
   if (argc == 2) {
 		lS = atoi(argv[1]);
 	}
+
+
+
 	int my_rank;
 	MPI_Status status;
 	MPI_Init (&argc, &argv);
@@ -146,8 +159,10 @@ int main(int argc, char** argv) {
     identity = new MatrixIdentity(lS);
 	}
 
-	int processColumnQty = lS/numprocs;
+  int useableProcs = getNbOfPUseableProcs(lS,numprocs);
+  cout<<useableProcs<<endl;
 
+	int processColumnQty = lS/useableProcs;
 
 	Matrix dataMatrix(lS,processColumnQty);
   Matrix dataIdentityMatrix(lS,processColumnQty);
