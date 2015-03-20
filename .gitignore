@@ -4,6 +4,8 @@
 *.o
 *.obj
 
+connectionColosse.txt
+
 .idea/*
 */.idea/*
 */build/*
