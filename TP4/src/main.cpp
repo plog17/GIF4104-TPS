@@ -2,7 +2,13 @@
 #include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
-#include <CL/cl.hpp>
+#include <vector>
+
+#ifdef __APPLE__
+    #include "OpenCL/opencl.h"
+#else
+    #include "CL/cl.h"
+#endif
 
 int main(int argc, char** argv) {
     cl_int status; // return value for most OpenCL functions
