@@ -3,12 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include "lodepng.h"
+#include "Tokenizer.hpp"
 
 #ifdef __APPLE__
     #include "OpenCL/cl.hpp"
 #else
     #include "CL/cl.h"
 #endif
+
+using namespace std;
 
 //Encoder à partir de pixels bruts sur le disque en un seul appel de fonction
 //L'argument inImage contient inWidth * inHeight pixels RGBA ou inWidth * inHeight * 4 octets
@@ -41,38 +45,141 @@ void usage(char* inName) {
     exit(1);
 }
 
+/* Find a GPU or CPU associated with the first available platform */
+cl_device_id create_device() {
+
+    cl_platform_id platform;
+    cl_uint nPlatforms;
+    cl_int err;
+
+    err = clGetPlatformIDs(0, NULL, &nPlatforms);
+    if(err < 0) {
+        perror("Couldn't identify a platform");
+        exit(1);
+    }
+
+    if(nPlatforms == 0){
+        printf("No Plateforms detected!");
+        exit(-1);
+    }
+
+    printf("Found %d plateforms.\n", nPlatforms);
+
+    /* Identify a platform */
+    err = clGetPlatformIDs(1, &platform, NULL);
+    if(err < 0) {
+        perror("Couldn't identify a platform");
+        exit(1);
+    }
+
+    cl_uint nGPU = 0;
+    cl_uint nCPU = 0;
+    cl_device_id dev;
+
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &nGPU);
+    if(err == CL_DEVICE_NOT_FOUND) {
+        err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 0, NULL, &nCPU);
+    }
+    if(err < 0) {
+        perror("Couldn't access any devices");
+        exit(1);
+    }
+
+    printf("Found %d GPU.\n", nGPU);
+    printf("Found %d CPU.\n", nCPU);
+
+    /* Access a device */
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
+    if(err == CL_DEVICE_NOT_FOUND) {
+        err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &dev, NULL);
+    }
+    if(err < 0) {
+        perror("Couldn't access any devices");
+        exit(1);
+    }
+
+    return dev;
+}
+
+/* Create program from a file and compile it */
+cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+
+    cl_program program;
+    FILE *program_handle;
+    char *program_buffer, *program_log;
+    size_t program_size, log_size;
+    int err;
+
+    /* Read program file and place content into buffer */
+    program_handle = fopen(filename, "r");
+    if(program_handle == NULL) {
+        perror("Couldn't find the program file");
+        exit(1);
+    }
+    fseek(program_handle, 0, SEEK_END);
+    program_size = ftell(program_handle);
+    rewind(program_handle);
+    program_buffer = (char*)malloc(program_size + 1);
+    program_buffer[program_size] = '\0';
+    fread(program_buffer, sizeof(char), program_size, program_handle);
+    fclose(program_handle);
+
+    /* Create program from file */
+    program = clCreateProgramWithSource(ctx, 1,
+            (const char**)&program_buffer, &program_size, &err);
+    if(err < 0) {
+        perror("Couldn't create the program");
+        exit(1);
+    }
+    free(program_buffer);
+
+    /* Build program */
+    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    if(err < 0) {
+
+        /* Find size of log and print to std output */
+        clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG,
+                0, NULL, &log_size);
+        program_log = (char*) malloc(log_size + 1);
+        program_log[log_size] = '\0';
+        clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG,
+                log_size + 1, program_log, NULL);
+        printf("%s\n", program_log);
+        free(program_log);
+        exit(1);
+    }
+
+    return program;
+}
+
 int main(int argc, char** argv) {
-    cl_int status; // return value for most OpenCL functions
-    cl_uint numPlatforms = 0;
+    /* OpenCL structures */
+    cl_device_id device;
+    cl_context context;
+    cl_program program;
+    cl_kernel kernel;
+    cl_command_queue queue;
+    cl_int i, j, err;
+    size_t local_size, global_size;
 
-    //get all platforms (drivers)
-    std::vector<cl::Platform> all_platforms;
-    cl::Platform::get(&all_platforms);
-    if(all_platforms.size()==0){
-        std::cout<<" No platforms found. Check OpenCL installation!\n";
+    /* Create device and context */
+    device = create_device();
+    context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
+    if(err < 0) {
+        perror("Couldn't create a context");
         exit(1);
     }
-    cl::Platform default_platform=all_platforms[0];
-        std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<< std::endl;
 
-    //get default device of the default platform
-    std::vector<cl::Device> all_devices;
-    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-    if(all_devices.size()==0){
-        std::cout<<" No devices found. Check OpenCL installation!\n";
-        exit(1);
-    }
-    cl::Device default_device=all_devices[0];
-    std::cout << "Found " << all_devices.size() << " device(s)" << std::endl;
-    std::cout << "Using device: " << default_device.getInfo<CL_DEVICE_NAME>() << std::endl;
-    for(auto device : all_devices) {
-        std::cout << "Found devices : " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-    }
+    char buf[100];
+    clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
+    printf("Device %s:", buf);
+
+    std::cout << context << std::endl;
 
 
 
     //MAIN SEQ
-
+    /*
     if(inArgc != 3 or inArgc > 4) usage(inArgv[0]);
     string lFilename = inArgv[1];
     string lOutFilename = "output.png";
@@ -118,5 +225,5 @@ int main(int argc, char** argv) {
     //Variables temporaires pour les canaux de l'image
     double lR, lG, lB;
 
-
+    */
 }
