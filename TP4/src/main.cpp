@@ -169,13 +169,24 @@ int main(int argc, char** argv) {
         perror("Couldn't create a context");
         exit(1);
     }
-
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
-    printf("Device %s:", buf);
+    printf("Using device: %s", buf);
 
-    std::cout << context << std::endl;
+    cl_program program;
 
+    program = build_program(context, device, "test.cl");
+
+    cl_kernel kernel;
+    kernel = clCreateKernel(program, "test", &err);
+    if(err != CL_SUCCESS){
+        printf("Kernel Creation Fail");
+        exit(-1);
+    }
+
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+    clReleaseContext(context);
 
 
     //MAIN SEQ
