@@ -213,21 +213,21 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    size_t localWorkSize = 256;
-    int numWorkGroups = (1 + localWorkSize - 1) / localWorkSize;
-    size_t globalWorkSize = numWorkGroups * localWorkSize;
-    clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
+
+    size_t globalWorkSize[1];
+    globalWorkSize[0] = ELEMENTS;
+    clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
 
     float output[ELEMENTS];
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, output, 0 , NULL, NULL);
 
     for(int i = 0; i < ELEMENTS; ++i){
-        printf("value %d = %f", i, output[i]);
+        printf("value %d = %f \n", i, output[i]);
     }
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
-    clReleaseMemObject(d_indput);
+    clReleaseMemObject(d_input);
     clReleaseMemObject(d_output);
     clReleaseContext(context);
 
