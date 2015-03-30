@@ -156,9 +156,6 @@ int main(int argc, char** argv) {
     /* OpenCL structures */
     cl_device_id device;
     cl_context context;
-    cl_program program;
-    cl_kernel kernel;
-    cl_command_queue queue;
     cl_int i, j, err;
     size_t local_size, global_size;
 
@@ -175,7 +172,7 @@ int main(int argc, char** argv) {
 
     cl_program program;
 
-    program = build_program(context, device, "test.cl");
+    program = build_program(context, device, "src/test.cl");
 
     cl_kernel kernel;
     kernel = clCreateKernel(program, "test", &err);
@@ -184,8 +181,54 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
+    cl_command_queue cmdQueue = clCreateCommandQueue(context, device, 0, &err);
+    if(err != CL_SUCCESS){
+        printf("Command Queue Creation fail");
+        exit(-1);
+    }
+
+    const int ELEMENTS = 10;
+    size_t datasize = sizeof(float)*ELEMENTS;
+    cl_mem d_input, d_output;
+    float input[ELEMENTS];
+    for(int i = 0; i < ELEMENTS; ++i){
+        input[i] = i*0.5;
+    }
+
+    d_input = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, datasize, input, &err);
+    if(err != CL_SUCCESS || d_input == NULL){
+        printf("Input Buffer Allocation Error");
+        exit(-1);
+    }
+    d_output = clCreateBuffer(context, CL_MEM_READ_WRITE, datasize, NULL, &err);
+    if(err != CL_SUCCESS || d_input == NULL){
+        printf("Output Buffer Allocation Error");
+        exit(-1);
+    }
+
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_input);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_output);
+    if(err != CL_SUCCESS){
+        printf("Set kernel argument fail");
+        exit(-1);
+    }
+
+    size_t localWorkSize = 256;
+    int numWorkGroups = (1 + localWorkSize - 1) / localWorkSize;
+    size_t globalWorkSize = numWorkGroups * localWorkSize;
+    clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, &globalWorkSize, &localWorkSize, 0, NULL, NULL);
+
+    float output[ELEMENTS];
+    clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, output, 0 , NULL, NULL);
+
+    for(int i = 0; i < ELEMENTS; ++i){
+        printf("value %d = %f", i, output[i]);
+    }
+
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+    clReleaseMemObject(d_indput);
+    clReleaseMemObject(d_output);
     clReleaseContext(context);
 
 
