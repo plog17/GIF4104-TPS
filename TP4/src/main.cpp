@@ -172,10 +172,10 @@ int main(int argc, char** argv) {
 
     cl_program program;
 
-    program = build_program(context, device, "src/test.cl");
+    program = build_program(context, device, "src/convolve.cl");
 
     cl_kernel kernel;
-    kernel = clCreateKernel(program, "test", &err);
+    kernel = clCreateKernel(program, "convolve", &err);
     if(err != CL_SUCCESS){
         printf("Kernel Creation Fail");
         exit(-1);
@@ -214,9 +214,14 @@ int main(int argc, char** argv) {
     }
 
 
-    size_t globalWorkSize[1];
-    globalWorkSize[0] = ELEMENTS;
-    clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, NULL);
+    //size_t globalWorkSize[1];
+    //globalWorkSize[0] = ELEMENTS;
+    size_t localWorkSize[2], globalWorkSize[2];  //64x64 ndrange 16x16 work
+    localWorkSize[0] = 16;
+    localWorkSize[1] = 16;
+    globalWorkSize[0] = 1024;
+    globalWorkSize[1] = 1024;
+    clEnqueueNDRangeKernel(cmdQueue, kernel, 1, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
 
     float output[ELEMENTS];
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, output, 0 , NULL, NULL);
@@ -230,54 +235,4 @@ int main(int argc, char** argv) {
     clReleaseMemObject(d_input);
     clReleaseMemObject(d_output);
     clReleaseContext(context);
-
-
-    //MAIN SEQ
-    /*
-    if(inArgc != 3 or inArgc > 4) usage(inArgv[0]);
-    string lFilename = inArgv[1];
-    string lOutFilename = "output.png";
-
-    // Lire le noyau.
-    ifstream lConfig;
-    lConfig.open(inArgv[2]);
-    if (!lConfig.is_open()) {
-        cerr << "Le fichier noyau fourni (" << inArgv[2] << ") est invalide." << endl;
-        exit(1);
-    }
-
-    PACC::Tokenizer lTok(lConfig);
-    lTok.setDelimiters(" \n","");
-
-    string lToken;
-    lTok.getNextToken(lToken);
-
-    int lK = atoi(lToken.c_str());
-    int lHalfK = lK/2;
-
-    cout << "Taille du noyau: " <<  lK << endl;
-
-    //Lecture du filtre
-    double* lFilter = new double[lK*lK];
-
-    for (unsigned int i = 0; i < lK; i++) {
-        for (unsigned int j = 0; j < lK; j++) {
-            lTok.getNextToken(lToken);
-            lFilter[i*lK+j] = atof(lToken.c_str());
-        }
-    }
-
-    //Lecture de l'image
-    //Variables à remplir
-    unsigned int lWidth, lHeight;
-    vector<unsigned char> lImage; //Les pixels bruts
-    //Appeler lodepng
-    decode(lFilename.c_str(), lImage, lWidth, lHeight);
-
-    //Variables contenant des indices
-    int fy, fx;
-    //Variables temporaires pour les canaux de l'image
-    double lR, lG, lB;
-
-    */
 }
