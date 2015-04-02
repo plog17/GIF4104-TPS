@@ -41,5 +41,5 @@ void Filter::loadFilterData() {
 }
 
 int Filter::size() {
-    return this->filterSize;
+    return this->filterSize * this->filterSize;
 }
