@@ -10,6 +10,7 @@ public:
     ~Filter();
 
     int size();
+    double * getData();
     double operator[](int i) const;
     double & operator[](int i);
 
@@ -25,4 +26,4 @@ private:
 
 inline double &Filter::operator[](int i) {return this->data[i];}
 inline double Filter::operator[](int i) const {return this->data[i];}
-
+inline double* Filter::getData() { return data;}

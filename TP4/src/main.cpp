@@ -4,7 +4,10 @@
 #include <stdlib.h>
 #include <vector>
 #include "lodepng.h"
+#include "PngImage.h"
+#include "Filter.h"
 #include "Tokenizer.hpp"
+#include "Chrono.hpp"
 
 #ifdef __APPLE__
     #include "OpenCL/cl.hpp"
@@ -156,11 +159,10 @@ int main(int argc, char** argv) {
     /* OpenCL structures */
     cl_device_id device;
     cl_context context;
-    cl_program program;
-    cl_kernel kernel;
-    cl_command_queue queue;
     cl_int i, j, err;
     size_t local_size, global_size;
+    Chrono chrono(false);
+    chrono.resume();
 
     /* Create device and context */
     device = create_device();
@@ -169,61 +171,90 @@ int main(int argc, char** argv) {
         perror("Couldn't create a context");
         exit(1);
     }
-
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
-    printf("Device %s:", buf);
+    printf("Using device: %s\n", buf);
 
-    std::cout << context << std::endl;
+    cl_program program;
 
+    program = build_program(context, device, "src/convolve.cl");
 
-
-    //MAIN SEQ
-    /*
-    if(inArgc != 3 or inArgc > 4) usage(inArgv[0]);
-    string lFilename = inArgv[1];
-    string lOutFilename = "output.png";
-
-    // Lire le noyau.
-    ifstream lConfig;
-    lConfig.open(inArgv[2]);
-    if (!lConfig.is_open()) {
-        cerr << "Le fichier noyau fourni (" << inArgv[2] << ") est invalide." << endl;
-        exit(1);
+    cl_kernel kernel;
+    kernel = clCreateKernel(program, "convolve", &err);
+    if(err != CL_SUCCESS){
+        printf("Kernel Creation Fail");
+        exit(-1);
     }
 
-    PACC::Tokenizer lTok(lConfig);
-    lTok.setDelimiters(" \n","");
-
-    string lToken;
-    lTok.getNextToken(lToken);
-
-    int lK = atoi(lToken.c_str());
-    int lHalfK = lK/2;
-
-    cout << "Taille du noyau: " <<  lK << endl;
-
-    //Lecture du filtre
-    double* lFilter = new double[lK*lK];
-
-    for (unsigned int i = 0; i < lK; i++) {
-        for (unsigned int j = 0; j < lK; j++) {
-            lTok.getNextToken(lToken);
-            lFilter[i*lK+j] = atof(lToken.c_str());
-        }
+    cl_command_queue cmdQueue = clCreateCommandQueue(context, device, 0, &err);
+    if(err != CL_SUCCESS){
+        printf("Command Queue Creation fail");
+        exit(-1);
     }
 
-    //Lecture de l'image
-    //Variables à remplir
-    unsigned int lWidth, lHeight;
-    vector<unsigned char> lImage; //Les pixels bruts
-    //Appeler lodepng
-    decode(lFilename.c_str(), lImage, lWidth, lHeight);
+    PngImage exampleImg("Image/exemple.png");
+    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
+    Filter filter("filters/noyau_flou");
+    int d_filterSize = filter.size();
 
-    //Variables contenant des indices
-    int fy, fx;
-    //Variables temporaires pour les canaux de l'image
-    double lR, lG, lB;
 
-    */
+    size_t datasize = sizeof(char)*exampleImg.getData()->size();
+    size_t filterSize = sizeof(double)*(d_filterSize*d_filterSize);
+    cl_mem d_inputImage, d_inputFilter, d_output;
+
+
+    d_inputImage = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, datasize, &exampleImg.getData()->at(0), &err);
+    if(err != CL_SUCCESS || d_inputImage == NULL){
+        printf("Input Buffer Allocation Error");
+        exit(-1);
+    }
+
+    d_inputFilter = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, filterSize, filter.getData(), &err);
+    if(err != CL_SUCCESS || d_inputFilter == NULL){
+        printf("Input Buffer Allocation Error");
+        exit(-1);
+    }
+
+    d_output = clCreateBuffer(context, CL_MEM_READ_WRITE, datasize, NULL, &err);
+    if(err != CL_SUCCESS || d_inputImage == NULL){
+        printf("Output Buffer Allocation Error");
+        exit(-1);
+    }
+
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_inputImage);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
+    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_filterSize);
+    if(err != CL_SUCCESS){
+        printf("Set kernel argument fail");
+        exit(-1);
+    }
+
+    double startTime = chrono.get();
+
+    //size_t globalWorkSize[1];
+    //globalWorkSize[0] = ELEMENTS;
+    size_t localWorkSize[2], globalWorkSize[2];  //64x64 ndrange 16x16 work
+    localWorkSize[0] = 1;
+    localWorkSize[1] = 1;
+    globalWorkSize[0] = 973 - 5;
+    globalWorkSize[1] = 1200 - 5;
+    clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
+
+    clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
+
+    std::cout << "Total Time: " << chrono.get() - startTime << " sec" << std::endl;
+
+    for(int i = 0; i < filteredImage.getData()->size(); ++i){
+        //printf("%d\n", filteredImage[i]);
+    }
+
+    filteredImage.writeToDisk("test.png");
+
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+    clReleaseMemObject(d_inputImage);
+    clReleaseMemObject(d_inputFilter);
+    clReleaseMemObject(d_output);
+    clReleaseContext(context);
 }

@@ -43,3 +43,4 @@ void Filter::loadFilterData() {
 int Filter::size() {
     return this->filterSize;
 }
+
