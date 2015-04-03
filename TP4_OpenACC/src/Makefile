@@ -12,7 +12,11 @@ LDFLAGS=-acc
 
 EXECUTABLE=tp4-openacc
 
+<<<<<<< HEAD
 MAKE_CMD=$(LD) $(LDFLAGS) -Minfo=accel -o $(EXECUTABLE) $(OBJECTS) $(LIB_PATHS) $(LIBS) 
+=======
+MAKE_CMD=$(LD) $(LDFLAGS) -ta=nvidia -Minfo=accel -o $(EXECUTABLE) $(OBJECTS) $(LIB_PATHS) $(LIBS) 
+>>>>>>> f07fd2c733836abbcd12a87e43e8a702c20a015f
 
 all: $(SOURCES) $(EXECUTABLE)
 
