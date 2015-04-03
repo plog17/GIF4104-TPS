@@ -1,94 +1,158 @@
+#include "lodepng.h"
 #include <iostream>
+#include <stdlib.h>
 #include <fstream>
-//#include <ncursesw/ncurses.h>
-#include "PngImage.h"
-#include "Filter.h"
-#include "Chrono.hpp"
-//#include "omp.h"
-#include <thread>
+#include <sys/time.h>
+#include "Tokenizer.hpp"
+#include <openacc.h>
+#include <openacc.h>
 
-int loadArguments(int argc, char **argv);
-void usage(std::string inName);
-PngImage convolve(PngImage &exampleImg, Filter &filter);
-unsigned getNumberOfCoreOnMachine();
+using namespace std;
 
-const char* pathToImage;
-const char* pathToFilter;
-const char* pathToOutput;
+//Aide pour le programme
+void usage(char* inName) {
+    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png]" << endl;
+    exit(1);
+}
 
-int main(int argc, char **argv) {
-    Chrono chrono(false);
-    chrono.resume();
-
-    loadArguments(argc, argv);
-
-    PngImage exampleImg(pathToImage);
-    Filter filter(pathToFilter);
-    double startTime = chrono.get();
-    PngImage newImage = convolve(exampleImg, filter);
-    std::cout << "Total Time: " << chrono.get() - startTime << " sec" << std::endl;
-    newImage.writeToDisk(pathToOutput);
-    return 0;
+double get_wall_time(){
+    struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
 
 
-PngImage convolve(PngImage &exampleImg, Filter &filter) {
-    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
-    int hf = filter.size()/2;
-    int convoWidth = exampleImg.getWidth() - filter.size();
-    int convoHeight = exampleImg.getHeight() - filter.size();
-    int blocks = convoWidth * convoHeight;
-    int i = 0;
+//Décoder à partir du disque dans un vecteur de pixels bruts en un seul appel de fonction
+void decode(const char* inFilename,  vector<unsigned char>& outImage, unsigned int& outWidth, unsigned int& outHeight)
+{
+    //Décoder
+    unsigned int lError = lodepng::decode(outImage, outWidth, outHeight, inFilename);
+    
+    //Montrer l'erreur s'il y en a une.
+    if(lError)
+    cout << "Erreur de décodage " << lError << ": " << lodepng_error_text(lError) << endl;
+    
+    //Les pixels sont maintenant dans le vecteur outImage, 4 octets par pixel, organisés RGBARGBA...
+}
 
-    #pragma accc parallel loop //private(i) num_threads(getNumberOfCoreOnMachine())
+//Encoder à partir de pixels bruts sur le disque en un seul appel de fonction
+//L'argument inImage contient inWidth * inHeight pixels RGBA ou inWidth * inHeight * 4 octets
+void encode(const char* inFilename, vector<unsigned char>& inImage, unsigned inWidth, unsigned inHeight)
+{
+    //Encoder l'image
+    unsigned lError = lodepng::encode(inFilename, inImage, inWidth, inHeight);
+    
+    //Montrer l'erreur s'il y en a une.
+    if(lError)
+    cout << "Erreur d'encodage " << lError << ": "<< lodepng_error_text(lError) << endl;
+}
+
+int main(int inArgc, char *inArgv[])
+{
+    if(inArgc != 3 or inArgc > 4) usage(inArgv[0]);
+    string lFilename = inArgv[1];
+    string lOutFilename = "output.png";
+    
+    // Lire le noyau.
+    ifstream lConfig;
+    lConfig.open(inArgv[2]);
+    if (!lConfig.is_open()) {
+        cerr << "Le fichier noyau fourni (" << inArgv[2] << ") est invalide." << endl;
+        exit(1);
+    }
+    
+    PACC::Tokenizer lTok(lConfig);
+    lTok.setDelimiters(" n","");
+    
+    string lToken;
+    lTok.getNextToken(lToken);
+    
+    int lK = atoi(lToken.c_str());
+    int lHalfK = lK/2;
+    
+    cout << "Taille du noyau: " <<  lK << endl;
+    
+    //Lecture du filtre
+    double* lFilter = new double[lK*lK];
+    
+    for (unsigned int i = 0; i < lK; i++) {
+        for (unsigned int j = 0; j < lK; j++) {
+            lTok.getNextToken(lToken);
+            lFilter[i*lK+j] = atof(lToken.c_str());
+        }
+    }
+    
+    //Lecture de l'image
+    //Variables à remplir
+    unsigned int lWidth, lHeight;
+    
+    vector<unsigned char> lImage; //Les pixels bruts
+    vector<unsigned char> lOutputImage; //Les pixels bruts
+    
+    //Appeler lodepng
+    decode(lFilename.c_str(), lImage, lWidth, lHeight);
+    
+    unsigned char* lOutputImageBuffer = lOutputImage.data();
+    unsigned char* lImageBuffer = lImage.data();
+
+    //début convolution
+    double startTime = get_wall_time();
+    
+    #pragma acc data copyin(lImage,lFilter[lK* lK],lHeight,lWidth)
+    #pragma acc data copyout(lOutputImageBuffer[lWidth*lHeight])
     {
-        //#pragma omp for schedule(static) nowait
-        for (i = 0; i < blocks; ++i) {
-            int x = i%convoWidth + hf;
-            int y = i/convoWidth + hf;
-            int lR = 0.;
-            int lG = 0.;
-            int lB = 0.;
-            for (int j = -filter.size()/2; j <= filter.size()/2; j++) {
-                int fy = j + filter.size()/2;
-                for (int i = -filter.size()/2; i <= filter.size()/2; i++) {
-                    int fx = i + filter.size()/2;
-                    //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
-                    lR += double(exampleImg[(y + j)*exampleImg.getWidth()*4 + (x + i)*4]) * filter[fx + fy*filter.size()];
-                    lG += double(exampleImg[(y + j)*exampleImg.getWidth()*4 + (x + i)*4 + 1]) * filter[fx + fy*filter.size()];
-                    lB += double(exampleImg[(y + j)*exampleImg.getWidth()*4 + (x + i)*4 + 2]) * filter[fx + fy*filter.size()];
+        //#pragma acc kernels
+        for(unsigned int x = lHalfK; x < lWidth - lHalfK; x++)
+        {
+            int bound=lHeight-lHalfK;
+            
+            //#pragma acc parallel loop
+            for (unsigned int y = lHalfK; y < bound; y++)
+            {
+                
+                //Variables temporaires pour les canaux de l'image
+                double lR, lG, lB;
+                lR = 0.;
+                lG = 0.;
+                lB = 0.;
+                
+                //#pragma acc kernels
+                {
+                    for (int j = -lHalfK; j <= lHalfK; j++) {
+                        int fy = j + lHalfK;
+ 
+                        for (int i = -lHalfK; i <= lHalfK; i++) {
+                            int fx = i + lHalfK;
+                            //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
+                            lR += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK];
+                            lG += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK];
+                            lB += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK];
+                        }
+                    }
+                    //Placer le résultat dans l'image.
+                    lOutputImageBuffer[y*lWidth*4 + x*4] = (unsigned char)lR;
+                    lOutputImageBuffer[y*lWidth*4 + x*4 + 1] = (unsigned char)lG;
+                    lOutputImageBuffer[y*lWidth*4 + x*4 + 2] = (unsigned char)lB;
                 }
-                filteredImage[y*exampleImg.getWidth()*4 + x*4] = (unsigned char)lR;
-                filteredImage[y*exampleImg.getWidth()*4 + x*4 + 1] = (unsigned char)lG;
-                filteredImage[y*exampleImg.getWidth()*4 + x*4 + 2] = (unsigned char)lB;
             }
         }
     }
-    return filteredImage;
-}
-
-unsigned getNumberOfCoreOnMachine(){
-  return std::thread::hardware_concurrency();
-}
-
-int loadArguments(int argc, char **argv) {
-    if(argc<3 || argc>4){
-        std::cout<<"Utilisation incorrecte."<<std::endl;
-        usage("TP2");
-    }
-    else if (argc==3){
-        pathToImage=argv[1];
-        pathToFilter=argv[2];
-        pathToOutput="output.png";
-    }
-    else{
-        pathToImage=argv[1];
-        pathToFilter=argv[2];
-        pathToOutput=argv[3];
-    }
-}
-
-void usage(std::string inName) {
-    std::cout << std::endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png]" << std::endl;
-    exit(1);
+    
+    //fin convolution, on s’assure que c’est fini
+    #pragma acc wait
+    
+    double endTime = get_wall_time();
+    
+    
+    //Sauvegarde de l'image dans un fichier sortie
+    encode(lOutFilename.c_str(),  lOutputImage, lWidth, lHeight);
+    
+    cout << "Temps total: " << endTime - startTime << endl;
+    cout << "L'image a été filtrée et enregistrée dans " << lOutFilename << " avec succès!" << endl;
+    
+    delete lFilter;
+    return 0;
 }
