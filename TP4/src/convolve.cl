@@ -1,8 +1,10 @@
 __kernel
-void convolve(__global unsigned char* inputImage, __global double* inputFilter, __global unsigned char* output, const int filterSize){
+void convolve(__constant unsigned char* inputImage, __global double* inputFilter, __global unsigned char* output,const int imWidth, const int filterSize){
 
-    int x = get_global_id(0)+2;
-    int y = get_global_id(1)+2;
+    int filterHalfSize = filterSize/2;
+
+    int x = get_global_id(0)+filterHalfSize;
+    int y = get_global_id(1)+filterHalfSize;
 
     int p = get_global_size(0);
     int r = get_global_size(1);
@@ -11,11 +13,17 @@ void convolve(__global unsigned char* inputImage, __global double* inputFilter, 
     int idX = get_local_id(0);
     int idY = get_local_id(1);
 
-    int filterHalfSize = filterSize/2;
-
     int lR = 0.;
     int lG = 0.;
     int lB = 0.;
+
+    __private unsigned char imageBlock[3][3];
+    for (int j = -filterHalfSize; j <= filterHalfSize; j++) {
+        for (int i = -filterHalfSize; i <= filterHalfSize; i++) {
+            imageBlock[j][i] = inputImage[(y + j)*imWidth*4 + (x + i)*4];
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
 
 
     for (int j = -filterHalfSize; j <= filterHalfSize; j++) {
@@ -24,13 +32,14 @@ void convolve(__global unsigned char* inputImage, __global double* inputFilter, 
             int fx = i + filterHalfSize;
             //printf("%d\n", fx + fy*filterHalfSize);
             //printf("%f\n", inputFilter[3]);
-            lR += convert_double(inputImage[(y + j)*973*4 + (x + i)*4]) * inputFilter[fx + fy*filterHalfSize];
-            lG += convert_double(inputImage[(y + j)*973*4 + (x + i)*4 + 1]) * inputFilter[fx + fy*filterHalfSize];
-            lB += convert_double(inputImage[(y + j)*973*4 + (x + i)*4 + 2]) * inputFilter[fx + fy*filterHalfSize];
+            lR += convert_double(imageBlock[j][i]) * inputFilter[fx + fy*filterHalfSize];
+            lG += convert_double(imageBlock[j][i]) * inputFilter[fx + fy*filterHalfSize];
+            lB += convert_double(imageBlock[j][i]) * inputFilter[fx + fy*filterHalfSize];
         }
     }
-    output[y*973*4 + x*4] = convert_char(lR);
-    output[y*973*4 + x*4 + 1] = convert_char(lG);
-    output[y*973*4 + x*4 + 2] = convert_char(lB);
-    output[y*973*4 + x*4 + 3] = 255;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    output[y*imWidth*4 + x*4] = convert_char(lR);
+    output[y*imWidth*4 + x*4 + 1] = convert_char(lG);
+    output[y*imWidth*4 + x*4 + 2] = convert_char(lB);
+    output[y*imWidth*4 + x*4 + 3] = 255;
 }

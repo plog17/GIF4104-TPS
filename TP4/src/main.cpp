@@ -196,6 +196,7 @@ int main(int argc, char** argv) {
     PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
     Filter filter("filters/noyau_flou");
     int d_filterSize = filter.size();
+    int d_imWidth = exampleImg.getWidth();
 
 
     size_t datasize = sizeof(char)*exampleImg.getData()->size();
@@ -224,7 +225,8 @@ int main(int argc, char** argv) {
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_inputImage);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
-    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_filterSize);
+    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_imWidth);
+    err |= clSetKernelArg(kernel, 4, sizeof(int), &d_filterSize);
     if(err != CL_SUCCESS){
         printf("Set kernel argument fail");
         exit(-1);
@@ -234,7 +236,7 @@ int main(int argc, char** argv) {
 
     //size_t globalWorkSize[1];
     //globalWorkSize[0] = ELEMENTS;
-    size_t localWorkSize[2], globalWorkSize[2];  //64x64 ndrange 16x16 work
+    size_t localWorkSize[2], globalWorkSize[2]; 
     localWorkSize[0] = 1;
     localWorkSize[1] = 1;
     globalWorkSize[0] = 973 - 5;
