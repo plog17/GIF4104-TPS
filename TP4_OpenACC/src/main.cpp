@@ -109,7 +109,7 @@ int main(int inArgc, char *inArgv[])
     #pragma acc data copyin(lImageBuffer[0:lHeight* lWidth]) copyin(lFilter[0:lK* lK]) copyin(lHeight) copyin(lWidth) copyin(lHalfK) copy(lOutputImageBuffer[0:lWidth*lHeight])
     {
         #pragma acc region
-	{
+    {
 
         #pragma acc loop independent vector
         //#pragma acc loop worker
@@ -139,13 +139,10 @@ int main(int inArgc, char *inArgv[])
 
                             //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
                             lR += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK];
-                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK] << endl;
 
                             lG += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK];
-                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK] << endl;
 
                             lB += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK];
-                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK] << endl;
                         }
                     }
                     //Placer le résultat dans l'image.
@@ -161,13 +158,11 @@ int main(int inArgc, char *inArgv[])
     
     cout << "Fin de la convolution" << endl;
 
-
     //fin convolution, on s’assure que c’est fini
     #pragma acc wait
     
     double endTime = get_wall_time();
 
-    
     //Sauvegarde de l'image dans un fichier sortie
     encode(lOutFilename.c_str(),  lOutputImage, lWidth, lHeight);
     
