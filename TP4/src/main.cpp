@@ -7,7 +7,7 @@
 #include "PngImage.h"
 #include "Filter.h"
 #include "Tokenizer.hpp"
-#include "Chrono.hpp"
+#include <sys/time.h>
 
 #ifdef __APPLE__
     #include "OpenCL/cl.hpp"
@@ -152,14 +152,21 @@ int loadArguments(int argc, char **argv) {
     }
 }
 
+double get_wall_time(){
+    struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+
 int main(int argc, char** argv) {
     /* OpenCL structures */
     cl_device_id device;
     cl_context context;
     cl_int i, j, err;
     size_t local_size, global_size;
-    Chrono chrono(false);
-    chrono.resume();
     loadArguments(argc, argv);
 
     PngImage exampleImg(pathToImage);
@@ -233,7 +240,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    double startTime = chrono.get();
+    double startTime = get_wall_time();
 
     //size_t globalWorkSize[1];
     //globalWorkSize[0] = ELEMENTS;
@@ -246,7 +253,7 @@ int main(int argc, char** argv) {
 
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
 
-    std::cout << "Total Time: " << chrono.get() - startTime << " sec" << std::endl;
+    std::cout << "Total Time: " << get_wall_time() - startTime << " sec" << std::endl;
 
     for(int i = 0; i < filteredImage.getData()->size(); ++i){
         //printf("%d\n", filteredImage[i]);
