@@ -31,7 +31,7 @@ void Filter::loadFilterData() {
     std::string lToken;
     if(this->data != nullptr)
         delete[] this->data;
-    this->data = new double[this->filterSize * this->filterSize];
+    this->data = new float[this->filterSize * this->filterSize];
     for (unsigned int i = 0; i < this->filterSize; ++i) {
         for (unsigned int j = 0; j < this->filterSize; ++j) {
             this->token->getNextToken(lToken);

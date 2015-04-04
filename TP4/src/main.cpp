@@ -185,9 +185,10 @@ int main(int argc, char** argv) {
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
 
+    int localSize = 32;
     cl_program program;
     char options[100];
-    sprintf(options, "-DFILTER_WIDTH=%d", d_filterSize);
+    sprintf(options, "-DBLOCK_SIZE=%d", localSize);
 
 
 
@@ -208,7 +209,7 @@ int main(int argc, char** argv) {
 
 
     size_t datasize = sizeof(char)*exampleImg.getData()->size();
-    size_t filterSize = sizeof(double)*(d_filterSize*d_filterSize);
+    size_t filterSize = sizeof(float)*(d_filterSize*d_filterSize);
     cl_mem d_inputImage, d_inputFilter, d_output;
 
 
@@ -245,10 +246,13 @@ int main(int argc, char** argv) {
     //size_t globalWorkSize[1];
     //globalWorkSize[0] = ELEMENTS;
     size_t localWorkSize[2], globalWorkSize[2];
-    localWorkSize[0] = 1;
-    localWorkSize[1] = 1;
-    globalWorkSize[0] = exampleImg.getWidth() - 5;
-    globalWorkSize[1] = exampleImg.getHeight() - 5;
+    localWorkSize[0] = localSize;
+    localWorkSize[1] = localSize;
+    int globalW = localSize * (exampleImg.getWidth()/localSize) + localSize;
+    int globalH = localSize * (exampleImg.getHeight()/localSize) + localSize;
+    globalWorkSize[0] = globalW;
+    globalWorkSize[1] = globalH;
+    printf("width = %d and height = %d", globalWorkSize[0], globalWorkSize[1]);
     clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
 
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
