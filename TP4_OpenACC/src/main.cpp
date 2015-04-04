@@ -1,11 +1,3 @@
-//
-//  tp2.cpp
-//  Exemple de convolution d'image avec lodepng
-//
-//  Créé par Julien-Charles Lévesque
-//  Copyright 2015 Université Laval. Tous droits réservés.
-//
-
 
 #include "lodepng.h"
 #include <iostream>
@@ -15,6 +7,8 @@
 #include "Tokenizer.hpp"
 #include <openacc.h>
 #include <openacc.h>
+
+
 using namespace std;
 
 //Aide pour le programme
@@ -38,11 +32,11 @@ void decode(const char* inFilename,  vector<unsigned char>& outImage, unsigned i
 {
     //Décoder
     unsigned int lError = lodepng::decode(outImage, outWidth, outHeight, inFilename);
-
+    
     //Montrer l'erreur s'il y en a une.
-    if(lError) 
-        cout << "Erreur de décodage " << lError << ": " << lodepng_error_text(lError) << endl;
-
+    if(lError)
+    cout << "Erreur de décodage " << lError << ": " << lodepng_error_text(lError) << endl;
+    
     //Les pixels sont maintenant dans le vecteur outImage, 4 octets par pixel, organisés RGBARGBA...
 }
 
@@ -52,10 +46,10 @@ void encode(const char* inFilename, vector<unsigned char>& inImage, unsigned inW
 {
     //Encoder l'image
     unsigned lError = lodepng::encode(inFilename, inImage, inWidth, inHeight);
-
+    
     //Montrer l'erreur s'il y en a une.
     if(lError)
-        cout << "Erreur d'encodage " << lError << ": "<< lodepng_error_text(lError) << endl;
+    cout << "Erreur d'encodage " << lError << ": "<< lodepng_error_text(lError) << endl;
 }
 
 int main(int inArgc, char *inArgv[])
@@ -63,7 +57,7 @@ int main(int inArgc, char *inArgv[])
     if(inArgc != 3 or inArgc > 4) usage(inArgv[0]);
     string lFilename = inArgv[1];
     string lOutFilename = "output.png";
-
+    
     // Lire le noyau.
     ifstream lConfig;
     lConfig.open(inArgv[2]);
@@ -73,8 +67,8 @@ int main(int inArgc, char *inArgv[])
     }
     
     PACC::Tokenizer lTok(lConfig);
-    lTok.setDelimiters(" \n","");
-        
+    lTok.setDelimiters(" n","");
+    
     string lToken;
     lTok.getNextToken(lToken);
     
@@ -85,77 +79,98 @@ int main(int inArgc, char *inArgv[])
     
     //Lecture du filtre
     double* lFilter = new double[lK*lK];
-        
+    
     for (unsigned int i = 0; i < lK; i++) {
         for (unsigned int j = 0; j < lK; j++) {
             lTok.getNextToken(lToken);
             lFilter[i*lK+j] = atof(lToken.c_str());
         }
     }
-
+    
     //Lecture de l'image
     //Variables à remplir
-    unsigned int lWidth, lHeight; 
+    unsigned int lWidth, lHeight;
+    
     vector<unsigned char> lImage; //Les pixels bruts
+    vector<unsigned char> lOutputImage; //Les pixels bruts
+    
     //Appeler lodepng
     decode(lFilename.c_str(), lImage, lWidth, lHeight);
-    
-    //Variables contenant des indices
-    int fy, fx;
-    //Variables temporaires pour les canaux de l'image
-    double lR, lG, lB;
-       
+    decode(lFilename.c_str(), lOutputImage, lWidth, lHeight);
+
+    unsigned char* lOutputImageBuffer = lOutputImage.data();
+    unsigned char* lImageBuffer = lImage.data();
+
     //début convolution
     double startTime = get_wall_time();
+    
+    cout << " Debut convolution " << endl; 
 
-#pragma acc data copy(lImage,lR,lG,lB,fx,fy,lHeight,lHalfK)
-{
-#pragma acc kernels
+    #pragma acc data copyin(lImageBuffer[0:lHeight* lWidth]) copyin(lFilter[0:lK* lK]) copyin(lHeight) copyin(lWidth) copyin(lHalfK) copy(lOutputImageBuffer[0:lWidth*lHeight])
+    {
+        #pragma acc region
+	{
+
+        #pragma acc loop independent vector
+        //#pragma acc loop worker
         for(unsigned int x = lHalfK; x < lWidth - lHalfK; x++)
-        {  
-
-int bound=lHeight-lHalfK;
-
-//#pragma acc parallel loop
+        {
+            int bound=lHeight-lHalfK;
+            
             for (unsigned int y = lHalfK; y < bound; y++)
             {
+                
+                //Variables temporaires pour les canaux de l'image
+                double lR, lG, lB;
                 lR = 0.;
                 lG = 0.;
                 lB = 0.;
 
-//#pragma acc kernels
-{
-                for (int j = -lHalfK; j <= lHalfK; j++) {
-                    fy = j + lHalfK;
-                    
+                unsigned outImBufferIndex = y*lWidth*4 + x;                
 
+                #pragma acc loop gang
+                {
+                    for (int j = -lHalfK; j <= lHalfK; j++) {
+                        int fy = j + lHalfK;
 
-                    for (int i = -lHalfK; i <= lHalfK; i++) {
-                        fx = i + lHalfK;
-                        //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
-                        lR += double(lImage[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK];
-                        lG += double(lImage[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK];
-                        lB += double(lImage[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK];
+                        #pragma acc loop reduction(+:lR) reduction(+:lG) reduction(+:lB) 
+                        for (int i = -lHalfK; i <= lHalfK; i++) {
+                            int fx = i + lHalfK;
+
+                            //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
+                            lR += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK];
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK] << endl;
+
+                            lG += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK];
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK] << endl;
+
+                            lB += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK];
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK] << endl;
+                        }
                     }
+                    //Placer le résultat dans l'image.
+
+                    lOutputImageBuffer[outImBufferIndex] = (unsigned char)lR;
+                    lOutputImageBuffer[outImBufferIndex + 1] = (unsigned char)lG;               
+                    lOutputImageBuffer[outImBufferIndex + 2] = (unsigned char)lB;
+
                 }
-                //Placer le résultat dans l'image.
-                lImage[y*lWidth*4 + x*4] = (unsigned char)lR;
-                lImage[y*lWidth*4 + x*4 + 1] = (unsigned char)lG;
-                lImage[y*lWidth*4 + x*4 + 2] = (unsigned char)lB;
             }
         }
-}
-}
+    }}
+    
+    cout << "Fin de la convolution" << endl;
+
 
     //fin convolution, on s’assure que c’est fini
     #pragma acc wait
     
     double endTime = get_wall_time();
 
-
+    
     //Sauvegarde de l'image dans un fichier sortie
-    encode(lOutFilename.c_str(),  lImage, lWidth, lHeight);
-   
+    encode(lOutFilename.c_str(),  lOutputImage, lWidth, lHeight);
+    
     cout << "Temps total: " << endTime - startTime << endl;
     cout << "L'image a été filtrée et enregistrée dans " << lOutFilename << " avec succès!" << endl;
 
