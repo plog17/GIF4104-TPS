@@ -3,7 +3,7 @@
 #PBS -N openacc_compile       # Nom de la tâche                                                                                                                                                                    
 #PBS -A colosse-users  # Identifiant Rap; ID                                                                                                                                                                       
 #PBS -l nodes=1:gpus=2                                                                                                                                                                                             
-#PBS -l walltime=120    # Durée en secondes  
+#PBS -l walltime=180    # Durée en secondes  
 
 # Change le répertoire courant sur le noeud de calcul
 cd "${PBS_O_WORKDIR}"
