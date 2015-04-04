@@ -107,57 +107,48 @@ int main(int inArgc, char *inArgv[])
     cout << " Debut convolution " << endl; 
 
   
-    #pragma acc data copyin(lImageBuffer[0:lHeight* lWidth]) copyin(lFilter[0:lK* lK]) copyin(lHeight) copyin(lWidth)
-    #pragma acc data copyout(lOutputImageBuffer[0:lWidth*lHeight])
-    //#pragma acc parallel num_gangs(256)
+    #pragma acc data copyin(lImageBuffer[0:lHeight* lWidth]) copyin(lFilter[0:lK* lK]) copyin(lHeight) copyin(lWidth) copyin(lHalfK) copy(lOutputImageBuffer[0:lWidth*lHeight])
     {
-        cout << " Entrer dans la zone ACC " << lWidth - lHalfK << endl;
+        #pragma acc region
+	{
 
-        //#pragma acc kernels
+        #pragma acc loop independent vector(16)
         for(unsigned int x = lHalfK; x < lWidth - lHalfK; x++)
         {
             int bound=lHeight-lHalfK;
-            cout << " Dans premier for loop " << x << endl;
             
-            //#pragma acc loop gang
+            //#pragma acc for private(lOutputImageBuffer[0:lWidth*lHeight]) 
             for (unsigned int y = lHalfK; y < bound; y++)
-            {
-                
+            {  
                 //Variables temporaires pour les canaux de l'image
                 double lR, lG, lB;
                 lR = 0.;
                 lG = 0.;
                 lB = 0.;
+
                 unsigned outImBufferIndex = y*lWidth*4 + x;                
 
-                //#pragma acc kernels
-                //#pragma acc loop gang
+                #pragma acc loop gang
                 {
                     for (int j = -lHalfK; j <= lHalfK; j++) {
                         int fy = j + lHalfK;
 
                         //#pragma acc loop gang
-                        //{                        
                         for (int i = -lHalfK; i <= lHalfK; i++) {
                             int fx = i + lHalfK;
 
-                            cout << " Dans premier for loop " << endl;
-
                             //R[x + i, y + j] = Im[x + i, y + j].R * Filter[i, j]
                             lR += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK];
-                            cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK] << endl;
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4]) * lFilter[fx + fy*lK] << endl;
 
                             lG += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK];
-                            cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK] << endl;
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 1]) * lFilter[fx + fy*lK] << endl;
 
                             lB += double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK];
-                            cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK] << endl;
+                            //cout << double(lImageBuffer[(y + j)*lWidth*4 + (x + i)*4 + 2]) * lFilter[fx + fy*lK] << endl;
                         }
-                        //}
                     }
                     //Placer le résultat dans l'image.
-                    cout << "Placer le résultat dans l'image" << endl;
-                    cout << outImBufferIndex << endl;
 
                     //cout << (unsigned char)lR << lR << endl;
                     lOutputImageBuffer[outImBufferIndex] = (unsigned char)lR;
@@ -171,7 +162,7 @@ int main(int inArgc, char *inArgv[])
                 }
             }
         }
-    }
+    }}
     
     cout << "Fin de la convolution" << endl;
 
