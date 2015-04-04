@@ -7,7 +7,7 @@
 #include "PngImage.h"
 #include "Filter.h"
 #include "Tokenizer.hpp"
-#include "Chrono.hpp"
+#include <sys/time.h>
 
 #ifdef __APPLE__
     #include "OpenCL/cl.hpp"
@@ -17,34 +17,14 @@
 
 using namespace std;
 
-//Encoder à partir de pixels bruts sur le disque en un seul appel de fonction
-//L'argument inImage contient inWidth * inHeight pixels RGBA ou inWidth * inHeight * 4 octets
-void encode(const char* inFilename, vector<unsigned char>& inImage, unsigned inWidth, unsigned inHeight)
-{
-    //Encoder l'image
-    unsigned lError = lodepng::encode(inFilename, inImage, inWidth, inHeight);
+const char* pathToImage;
+const char* pathToFilter;
+const char* pathToConvolve;
 
-    //Montrer l'erreur s'il y en a une.
-    if(lError)
-        cout << "Erreur d'encodage " << lError << ": "<< lodepng_error_text(lError) << endl;
-}
-
-//Décoder à partir du disque dans un vecteur de pixels bruts en un seul appel de fonction
-void decode(const char* inFilename,  vector<unsigned char>& outImage, unsigned int& outWidth, unsigned int& outHeight)
-{
-    //Décoder
-    unsigned int lError = lodepng::decode(outImage, outWidth, outHeight, inFilename);
-
-    //Montrer l'erreur s'il y en a une.
-    if(lError)
-        cout << "Erreur de décodage " << lError << ": " << lodepng_error_text(lError) << endl;
-
-    //Les pixels sont maintenant dans le vecteur outImage, 4 octets par pixel, organisés RGBARGBA...
-}
 
 //Aide pour le programme
 void usage(char* inName) {
-    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png]" << endl;
+    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_convolve=convolveOpt.cl]" << endl;
     exit(1);
 }
 
@@ -105,7 +85,7 @@ cl_device_id create_device() {
 }
 
 /* Create program from a file and compile it */
-cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename, const char* options) {
 
     cl_program program;
     FILE *program_handle;
@@ -137,7 +117,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
     free(program_buffer);
 
     /* Build program */
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    err = clBuildProgram(program, 0, NULL, options, NULL, NULL);
     if(err < 0) {
 
         /* Find size of log and print to std output */
@@ -155,14 +135,45 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
     return program;
 }
 
+int loadArguments(int argc, char **argv) {
+    if(argc<3 || argc>4){
+        std::cout<<"Utilisation incorrecte."<<std::endl;
+        usage("TP4");
+    }
+    else if (argc==3){
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToConvolve="src/convolveOpt.cl";
+    }
+    else{
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToConvolve=argv[3];
+    }
+}
+
+double get_wall_time(){
+    struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+
 int main(int argc, char** argv) {
     /* OpenCL structures */
     cl_device_id device;
     cl_context context;
     cl_int i, j, err;
     size_t local_size, global_size;
-    Chrono chrono(false);
-    chrono.resume();
+    loadArguments(argc, argv);
+
+    PngImage exampleImg(pathToImage);
+    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
+    Filter filter(pathToFilter);
+    int d_filterSize = filter.size();
+    int d_imWidth = exampleImg.getWidth();
 
     /* Create device and context */
     device = create_device();
@@ -173,11 +184,15 @@ int main(int argc, char** argv) {
     }
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
-    printf("Using device: %s\n", buf);
 
+    int localSize = 32;
     cl_program program;
+    char options[100];
+    sprintf(options, "-DBLOCK_SIZE=%d", localSize);
 
-    program = build_program(context, device, "src/convolve.cl");
+
+
+    program = build_program(context, device, pathToConvolve, options);
 
     cl_kernel kernel;
     kernel = clCreateKernel(program, "convolve", &err);
@@ -192,14 +207,9 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-    PngImage exampleImg("Image/exemple.png");
-    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
-    Filter filter("filters/noyau_flou");
-    int d_filterSize = filter.size();
-
 
     size_t datasize = sizeof(char)*exampleImg.getData()->size();
-    size_t filterSize = sizeof(double)*(d_filterSize*d_filterSize);
+    size_t filterSize = sizeof(float)*(d_filterSize*d_filterSize);
     cl_mem d_inputImage, d_inputFilter, d_output;
 
 
@@ -224,32 +234,36 @@ int main(int argc, char** argv) {
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_inputImage);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
-    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_filterSize);
+    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_imWidth);
+    err |= clSetKernelArg(kernel, 4, sizeof(int), &d_filterSize);
     if(err != CL_SUCCESS){
         printf("Set kernel argument fail");
         exit(-1);
     }
 
-    double startTime = chrono.get();
+    double startTime = get_wall_time();
 
     //size_t globalWorkSize[1];
     //globalWorkSize[0] = ELEMENTS;
-    size_t localWorkSize[2], globalWorkSize[2];  //64x64 ndrange 16x16 work
-    localWorkSize[0] = 1;
-    localWorkSize[1] = 1;
-    globalWorkSize[0] = 973 - 5;
-    globalWorkSize[1] = 1200 - 5;
+    size_t localWorkSize[2], globalWorkSize[2];
+    localWorkSize[0] = localSize;
+    localWorkSize[1] = localSize;
+    int globalW = localSize * (exampleImg.getWidth()/localSize) + localSize;
+    int globalH = localSize * (exampleImg.getHeight()/localSize) + localSize;
+    globalWorkSize[0] = globalW;
+    globalWorkSize[1] = globalH;
+    printf("width = %d and height = %d", globalWorkSize[0], globalWorkSize[1]);
     clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
 
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
 
-    std::cout << "Total Time: " << chrono.get() - startTime << " sec" << std::endl;
+    std::cout << "Total Time: " << get_wall_time() - startTime << " sec" << std::endl;
 
     for(int i = 0; i < filteredImage.getData()->size(); ++i){
         //printf("%d\n", filteredImage[i]);
     }
 
-    filteredImage.writeToDisk("test.png");
+    filteredImage.writeToDisk("output.png");
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
