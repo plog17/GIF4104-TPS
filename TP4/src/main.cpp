@@ -17,34 +17,14 @@
 
 using namespace std;
 
-//Encoder à partir de pixels bruts sur le disque en un seul appel de fonction
-//L'argument inImage contient inWidth * inHeight pixels RGBA ou inWidth * inHeight * 4 octets
-void encode(const char* inFilename, vector<unsigned char>& inImage, unsigned inWidth, unsigned inHeight)
-{
-    //Encoder l'image
-    unsigned lError = lodepng::encode(inFilename, inImage, inWidth, inHeight);
+const char* pathToImage;
+const char* pathToFilter;
+const char* pathToConvolve;
 
-    //Montrer l'erreur s'il y en a une.
-    if(lError)
-        cout << "Erreur d'encodage " << lError << ": "<< lodepng_error_text(lError) << endl;
-}
-
-//Décoder à partir du disque dans un vecteur de pixels bruts en un seul appel de fonction
-void decode(const char* inFilename,  vector<unsigned char>& outImage, unsigned int& outWidth, unsigned int& outHeight)
-{
-    //Décoder
-    unsigned int lError = lodepng::decode(outImage, outWidth, outHeight, inFilename);
-
-    //Montrer l'erreur s'il y en a une.
-    if(lError)
-        cout << "Erreur de décodage " << lError << ": " << lodepng_error_text(lError) << endl;
-
-    //Les pixels sont maintenant dans le vecteur outImage, 4 octets par pixel, organisés RGBARGBA...
-}
 
 //Aide pour le programme
 void usage(char* inName) {
-    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_sortie=output.png]" << endl;
+    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_convolve=convolveOpt.cl]" << endl;
     exit(1);
 }
 
@@ -105,7 +85,7 @@ cl_device_id create_device() {
 }
 
 /* Create program from a file and compile it */
-cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename, const char* options) {
 
     cl_program program;
     FILE *program_handle;
@@ -137,7 +117,7 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
     free(program_buffer);
 
     /* Build program */
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    err = clBuildProgram(program, 0, NULL, options, NULL, NULL);
     if(err < 0) {
 
         /* Find size of log and print to std output */
@@ -155,6 +135,23 @@ cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename)
     return program;
 }
 
+int loadArguments(int argc, char **argv) {
+    if(argc<3 || argc>4){
+        std::cout<<"Utilisation incorrecte."<<std::endl;
+        usage("TP4");
+    }
+    else if (argc==3){
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToConvolve="src/convolveOpt.cl";
+    }
+    else{
+        pathToImage=argv[1];
+        pathToFilter=argv[2];
+        pathToConvolve=argv[3];
+    }
+}
+
 int main(int argc, char** argv) {
     /* OpenCL structures */
     cl_device_id device;
@@ -163,6 +160,13 @@ int main(int argc, char** argv) {
     size_t local_size, global_size;
     Chrono chrono(false);
     chrono.resume();
+    loadArguments(argc, argv);
+
+    PngImage exampleImg(pathToImage);
+    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
+    Filter filter(pathToFilter);
+    int d_filterSize = filter.size();
+    int d_imWidth = exampleImg.getWidth();
 
     /* Create device and context */
     device = create_device();
@@ -173,11 +177,14 @@ int main(int argc, char** argv) {
     }
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
-    printf("Using device: %s\n", buf);
 
     cl_program program;
+    char options[100];
+    sprintf(options, "-DFILTER_WIDTH=%d", d_filterSize);
 
-    program = build_program(context, device, "src/convolve.cl");
+
+
+    program = build_program(context, device, pathToConvolve, options);
 
     cl_kernel kernel;
     kernel = clCreateKernel(program, "convolve", &err);
@@ -191,11 +198,6 @@ int main(int argc, char** argv) {
         printf("Command Queue Creation fail");
         exit(-1);
     }
-
-    PngImage exampleImg("Image/exemple.png");
-    PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
-    Filter filter("filters/noyau_flou");
-    int d_filterSize = filter.size();
 
 
     size_t datasize = sizeof(char)*exampleImg.getData()->size();
@@ -224,7 +226,8 @@ int main(int argc, char** argv) {
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_inputImage);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
-    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_filterSize);
+    err |= clSetKernelArg(kernel, 3, sizeof(int), &d_imWidth);
+    err |= clSetKernelArg(kernel, 4, sizeof(int), &d_filterSize);
     if(err != CL_SUCCESS){
         printf("Set kernel argument fail");
         exit(-1);
@@ -234,11 +237,11 @@ int main(int argc, char** argv) {
 
     //size_t globalWorkSize[1];
     //globalWorkSize[0] = ELEMENTS;
-    size_t localWorkSize[2], globalWorkSize[2];  //64x64 ndrange 16x16 work
+    size_t localWorkSize[2], globalWorkSize[2];
     localWorkSize[0] = 1;
     localWorkSize[1] = 1;
-    globalWorkSize[0] = 973 - 5;
-    globalWorkSize[1] = 1200 - 5;
+    globalWorkSize[0] = exampleImg.getWidth() - 5;
+    globalWorkSize[1] = exampleImg.getHeight() - 5;
     clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
 
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
@@ -249,7 +252,7 @@ int main(int argc, char** argv) {
         //printf("%d\n", filteredImage[i]);
     }
 
-    filteredImage.writeToDisk("test.png");
+    filteredImage.writeToDisk("output.png");
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
