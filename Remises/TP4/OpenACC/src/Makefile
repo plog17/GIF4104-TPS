@@ -7,8 +7,8 @@ LD=pgc++
 LIBS=-lstdc++
 LIB_PATHS=-L/software6/compilers/gcc/4.8/lib64
 INCLUDE_PATHS=
-CFLAGS=#-acc
-LDFLAGS=#-acc
+CFLAGS=-acc
+LDFLAGS=-acc
 
 EXECUTABLE=tp4-openacc
 
