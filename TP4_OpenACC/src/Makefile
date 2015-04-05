@@ -12,7 +12,8 @@ LDFLAGS=-acc
 
 EXECUTABLE=tp4-openacc
 
-MAKE_CMD=$(LD) $(LDFLAGS) -ta=nvidia -Minfo=accel -o $(EXECUTABLE) $(OBJECTS) $(LIB_PATHS) $(LIBS) 
+MAKE_CMD=$(LD) $(LDFLAGS) -Minfo=accel -o $(EXECUTABLE) $(OBJECTS) $(LIB_PATHS) $(LIBS) 
+
 
 all: $(SOURCES) $(EXECUTABLE)
 
