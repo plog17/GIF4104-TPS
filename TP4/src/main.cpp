@@ -19,12 +19,12 @@ using namespace std;
 
 const char* pathToImage;
 const char* pathToFilter;
-const char* pathToConvolve;
+const char* pathToOutput;
 
 
 //Aide pour le programme
 void usage(char* inName) {
-    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_convolve=convolve.cl]" << endl;
+    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_output=output.png]" << endl;
     exit(1);
 }
 
@@ -140,12 +140,12 @@ int loadArguments(int argc, char **argv) {
     else if (argc==3){
         pathToImage=argv[1];
         pathToFilter=argv[2];
-        pathToConvolve="src/convolve.cl";
+        pathToOutput="output.png";
     }
     else{
         pathToImage=argv[1];
         pathToFilter=argv[2];
-        pathToConvolve=argv[3];
+        pathToOutput=argv[3];
     }
 }
 
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
     cl_program program;
     char options[50];
     sprintf(options, "-DBLOCK_SIZE=%d", localSize);
-    program = build_program(context, device, pathToConvolve, options);
+    program = build_program(context, device, "src/convolve.cl", options);
 
     /* Préparation du Kernel*/
     cl_kernel kernel;
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
 
     std::cout << "Total Time: " << get_wall_time() - startTime << " sec" << std::endl;
 
-    filteredImage.writeToDisk("output.png");
+    filteredImage.writeToDisk(pathToOutput);
 
     /* Clean Up*/
     clReleaseKernel(kernel);

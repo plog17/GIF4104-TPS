@@ -3,7 +3,7 @@ SOURCES=src/lodepng.cpp src/main.cpp src/PngImage.cpp src/Filter.cpp src/Tokeniz
 LIBS=-lOpenCL
 CFLAGS=-c -Wall
 INCLUDES=-I include
-EXECUTABLE=test
+EXECUTABLE=tp4
 
 
 all:
