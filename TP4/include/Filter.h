@@ -10,20 +10,20 @@ public:
     ~Filter();
 
     int size();
-    double * getData();
-    double operator[](int i) const;
-    double & operator[](int i);
+    float * getData();
+    float operator[](int i) const;
+    float & operator[](int i);
 
 private:
     int loadSize();
     void loadFilterData();
 
     int filterSize;
-    double *data;
+    float *data;
     PACC::Tokenizer *token;
 
 };
 
-inline double &Filter::operator[](int i) {return this->data[i];}
-inline double Filter::operator[](int i) const {return this->data[i];}
-inline double* Filter::getData() { return data;}
+inline float &Filter::operator[](int i) {return this->data[i];}
+inline float Filter::operator[](int i) const {return this->data[i];}
+inline float* Filter::getData() { return data;}

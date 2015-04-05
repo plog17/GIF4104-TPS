@@ -1,5 +1,5 @@
 __kernel
-void convolve(__global unsigned char* inputImage, __global double* inputFilter, __global unsigned char* output,const int imWidth, const int filterSize){
+void convolve(__global unsigned char* inputImage, __global float* inputFilter, __global unsigned char* output,const int imWidth, const int filterSize){
 
     int filterHalfSize = filterSize/2;
 
@@ -24,9 +24,9 @@ void convolve(__global unsigned char* inputImage, __global double* inputFilter, 
             int fx = i + filterHalfSize;
             //printf("%d\n", fx + fy*filterHalfSize);
             //printf("%f\n", inputFilter[3]);
-            lR += convert_double(inputImage[(y + j)*imWidth*4 + (x + i)*4]) * inputFilter[fx + fy*filterHalfSize];
-            lG += convert_double(inputImage[(y + j)*imWidth*4 + (x + i)*4 + 1]) * inputFilter[fx + fy*filterHalfSize];
-            lB += convert_double(inputImage[(y + j)*imWidth*4 + (x + i)*4 + 2]) * inputFilter[fx + fy*filterHalfSize];
+            lR += convert_float(inputImage[(y + j)*imWidth*4 + (x + i)*4]) * inputFilter[fx + fy*filterHalfSize];
+            lG += convert_float(inputImage[(y + j)*imWidth*4 + (x + i)*4 + 1]) * inputFilter[fx + fy*filterHalfSize];
+            lB += convert_float(inputImage[(y + j)*imWidth*4 + (x + i)*4 + 2]) * inputFilter[fx + fy*filterHalfSize];
         }
     }
     output[y*973*4 + x*4] = convert_char(lR);
