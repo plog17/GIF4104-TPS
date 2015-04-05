@@ -1,9 +1,9 @@
 CC=g++ -std=c++11
-SOURCES=src/lodepng.cpp src/main.cpp src/PngImage.cpp src/Filter.cpp src/Tokenizer.cpp
+SOURCES=src/lodepng.cpp src/seq_tp2.cpp src/PngImage.cpp src/Filter.cpp src/Tokenizer.cpp
 LIBS=-lOpenCL
 CFLAGS=-c -Wall
 INCLUDES=-I include
-EXECUTABLE=tp4
+EXECUTABLE=test
 
 
 all:
