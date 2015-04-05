@@ -9,14 +9,18 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     int idX = get_local_id(0);
     int idY = get_local_id(1);
 
+    bool dummyThread = False;
+    
     // identification globale
     int x = i*BLOCK_SIZE + idX;
     int y = j*BLOCK_SIZE + idY;
     if(x >= imWidth - filterSize){
         x = imWidth - filterSize;
+    	dummyThread = True;
     }
     if(y >= imHeight - filterSize){
         y = imHeight - filterSize;
+	dummyThread = True;
     }
 
     //Tableau local augmenté en fonction de la taille du filtre
@@ -64,10 +68,12 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     //transfert des données dans l'image de sortie
-    int outputX = x + filterHalfSize;
-    int outputY = y + filterHalfSize;
-    output[outputY*imWidth*4 + outputX*4] = convert_char(rgbValues.x);
-    output[outputY*imWidth*4 + outputX*4 + 1] = convert_char(rgbValues.y);
-    output[outputY*imWidth*4 + outputX*4 + 2] = convert_char(rgbValues.z);
-    output[outputY*imWidth*4 + outputX*4 + 3] = 255;
+    if(!dummyThread){
+	int outputX = x + filterHalfSize;
+    	int outputY = y + filterHalfSize;
+    	output[outputY*imWidth*4 + outputX*4] = convert_char(rgbValues.x);
+    	output[outputY*imWidth*4 + outputX*4 + 1] = convert_char(rgbValues.y);
+    	output[outputY*imWidth*4 + outputX*4 + 2] = convert_char(rgbValues.z);
+    	output[outputY*imWidth*4 + outputX*4 + 3] = 255;
+    }
 }
