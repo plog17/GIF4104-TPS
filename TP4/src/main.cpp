@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     char buf[100];
     clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
 
-    int localSize = 64;
+    int localSize = 16;
     cl_program program;
     char options[100];
     sprintf(options, "-DBLOCK_SIZE=%d", localSize);
