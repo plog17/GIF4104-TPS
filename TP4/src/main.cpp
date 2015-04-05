@@ -28,7 +28,7 @@ void usage(char* inName) {
     exit(1);
 }
 
-/* Find a GPU or CPU associated with the first available platform */
+/* Troube le premier GPU ou CPU et le retourne */
 cl_device_id create_device() {
 
     cl_platform_id platform;
@@ -84,7 +84,7 @@ cl_device_id create_device() {
     return dev;
 }
 
-/* Create program from a file and compile it */
+/* Compile le programme dans le fichier avec possibilité d'ajouter des options */
 cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename, const char* options) {
 
     cl_program program;
@@ -169,31 +169,28 @@ int main(int argc, char** argv) {
     size_t local_size, global_size;
     loadArguments(argc, argv);
 
+    /* Préparations des données */
     PngImage exampleImg(pathToImage);
     PngImage filteredImage(*exampleImg.getData(), exampleImg.getWidth(), exampleImg.getHeight());
     Filter filter(pathToFilter);
     int d_filterSize = filter.size();
     int d_imWidth = exampleImg.getWidth();
 
-    /* Create device and context */
+    /* Création du device et du context*/
     device = create_device();
     context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
     if(err < 0) {
         perror("Couldn't create a context");
         exit(1);
     }
-    char buf[100];
-    clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buf), buf, NULL);
 
-    int localSize = 32;
+    /* Compilation du programme*/
     cl_program program;
-    char options[100];
+    char options[50];
     sprintf(options, "-DBLOCK_SIZE=%d", localSize);
-
-
-
     program = build_program(context, device, pathToConvolve, options);
 
+    /* Préparation du Kernel*/
     cl_kernel kernel;
     kernel = clCreateKernel(program, "convolve", &err);
     if(err != CL_SUCCESS){
@@ -207,7 +204,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
-
+    /* Création des buffers */
     size_t datasize = sizeof(char)*exampleImg.getData()->size();
     size_t filterSize = sizeof(float)*(d_filterSize*d_filterSize);
     cl_mem d_inputImage, d_inputFilter, d_output;
@@ -231,6 +228,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
 
+    /* Création des arguments pour le Kernel*/
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_inputImage);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
@@ -243,8 +241,7 @@ int main(int argc, char** argv) {
 
     double startTime = get_wall_time();
 
-    //size_t globalWorkSize[1];
-    //globalWorkSize[0] = ELEMENTS;
+    /* Formatage du NDRange : 2D, local = 32x32 (architecture),  global= multiple de 32 en fonction de la taille de l'image*/
     size_t localWorkSize[2], globalWorkSize[2];
     localWorkSize[0] = localSize;
     localWorkSize[1] = localSize;
@@ -259,12 +256,9 @@ int main(int argc, char** argv) {
 
     std::cout << "Total Time: " << get_wall_time() - startTime << " sec" << std::endl;
 
-    for(int i = 0; i < filteredImage.getData()->size(); ++i){
-        //printf("%d\n", filteredImage[i]);
-    }
-
     filteredImage.writeToDisk("output.png");
 
+    /* Clean Up*/
     clReleaseKernel(kernel);
     clReleaseProgram(program);
     clReleaseMemObject(d_inputImage);

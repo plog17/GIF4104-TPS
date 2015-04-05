@@ -4,22 +4,23 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     int filterHalfSize = filterSize>>1;
 
     int i = get_group_id(0);
-    int j = get_group_id(1); //Identification of work-item
+    int j = get_group_id(1);
 
-    //Identification of work-item
     int idX = get_local_id(0);
     int idY = get_local_id(1);
 
+    // identification globale
     int x = i*BLOCK_SIZE + idX;
     int y = j*BLOCK_SIZE + idY;
 
-    //Goes up to 15x15 filters
+    //Tableau local augmenté en fonction de la taille du filtre
     __local float localBlockR[BLOCK_SIZE+14][BLOCK_SIZE+14];
     __local float localBlockG[BLOCK_SIZE+14][BLOCK_SIZE+14];
     __local float localBlockB[BLOCK_SIZE+14][BLOCK_SIZE+14];
     localBlockR[idX][idY] = inputImage[y*imWidth*4 + x*4];
     localBlockG[idX][idY] = inputImage[y*imWidth*4 + x*4 + 1];
     localBlockB[idX][idY] = inputImage[y*imWidth*4 + x*4 + 2];
+    //Les conditions suivante peuple le reste du tableau, un thread peu donc stocker jusqu'à 3 données dans le tableau local
     if (idX < filterSize)
     {
         int newx = x + BLOCK_SIZE;
@@ -45,6 +46,7 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    //Application de la convolution, mad(a,b,c) => a*b+c
     int4 rgbValues = (int4)(0,0,0,0);
     for (int yFilter = 0; yFilter <= filterSize; yFilter++) {
         for (int xFilter = 0; xFilter <= filterSize; xFilter++) {
@@ -55,6 +57,7 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    //transfert des données dans l'image de sortie
     int outputX = x + filterHalfSize;
     int outputY = y + filterHalfSize;
     output[outputY*imWidth*4 + outputX*4] = convert_char(rgbValues.x);
