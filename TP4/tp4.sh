@@ -11,17 +11,8 @@ cd "${PBS_O_WORKDIR}"
 ./test Image/landscape_hd.png filters/noyau_flou src/convolve.cl
 ./test Image/landscape_hd.png filters/noyau_flou src/convolve.cl
 
-./test Image/landscape_hd.png filters/noyau_flou src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_flou src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_flou src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_flou src/convolveNonOptimised.cl
-
 ./test Image/landscape_hd.png filters/noyau_identite src/convolve.cl
 ./test Image/landscape_hd.png filters/noyau_identite src/convolve.cl
 ./test Image/landscape_hd.png filters/noyau_identite src/convolve.cl
 ./test Image/landscape_hd.png filters/noyau_identite src/convolve.cl
 
-./test Image/landscape_hd.png filters/noyau_identite src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_identite src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_identite src/convolveNonOptimised.cl
-./test Image/landscape_hd.png filters/noyau_identite src/convolveNonOptimised.cl
