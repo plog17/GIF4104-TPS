@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     }
 
     /* Compilation du programme*/
-    int localSize = 64;
+    int localSize = 32;
     cl_program program;
     char options[50];
     sprintf(options, "-DBLOCK_SIZE=%d", localSize);
