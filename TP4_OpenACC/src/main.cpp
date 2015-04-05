@@ -109,7 +109,11 @@ int main(int inArgc, char *inArgv[])
     #pragma acc data copyin(lImageBuffer[0:lHeight* lWidth]) copyin(lFilter[0:lK* lK]) copyin(lHeight) copyin(lWidth) copyin(lHalfK) copy(lOutputImageBuffer[0:lWidth*lHeight])
     {
         #pragma acc region
+<<<<<<< HEAD
+	{
+=======
     {
+>>>>>>> ac704872df2ccd10008716a870dd3c51232f0145
 
         #pragma acc loop independent vector
         //#pragma acc loop worker

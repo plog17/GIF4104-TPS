@@ -1,5 +1,5 @@
 __kernel
-void convolve(__global unsigned char* inputImage, __constant float* inputFilter, __global unsigned char* output,const int imWidth, const int filterSize){
+void convolve(__global unsigned char* inputImage, __constant float* inputFilter, __global unsigned char* output,const int imWidth, const int imHeight, const int filterSize){
 
     int filterHalfSize = filterSize>>1;
 
@@ -12,6 +12,12 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     // identification globale
     int x = i*BLOCK_SIZE + idX;
     int y = j*BLOCK_SIZE + idY;
+    if(x >= imWidth - filterSize){
+        x = imWidth - filterSize;
+    }
+    if(y >= imHeight - filterSize){
+        y = imHeight - filterSize;
+    }
 
     //Tableau local augmenté en fonction de la taille du filtre
     __local float localBlockR[BLOCK_SIZE+14][BLOCK_SIZE+14];
@@ -48,8 +54,8 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
 
     //Application de la convolution, mad(a,b,c) => a*b+c
     int4 rgbValues = (int4)(0,0,0,0);
-    for (int yFilter = 0; yFilter <= filterSize; yFilter++) {
-        for (int xFilter = 0; xFilter <= filterSize; xFilter++) {
+    for (int yFilter = 0; yFilter <= filterSize; ++yFilter) {
+        for (int xFilter = 0; xFilter <= filterSize; ++xFilter) {
             rgbValues.x = mad(inputFilter[xFilter + yFilter*filterSize], localBlockR[idX+xFilter][idY+yFilter], rgbValues.x);
             rgbValues.y = mad(inputFilter[xFilter + yFilter*filterSize], localBlockG[idX+xFilter][idY+yFilter], rgbValues.y);
             rgbValues.z = mad(inputFilter[xFilter + yFilter*filterSize], localBlockB[idX+xFilter][idY+yFilter], rgbValues.z);

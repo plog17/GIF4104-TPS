@@ -4,6 +4,11 @@
 *.o
 *.obj
 
+*.err
+*.out
+
+test.sh
+test2.sh
 test
 connectionColosse.txt
 

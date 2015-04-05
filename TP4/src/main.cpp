@@ -24,7 +24,7 @@ const char* pathToConvolve;
 
 //Aide pour le programme
 void usage(char* inName) {
-    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_convolve=convolveOpt.cl]" << endl;
+    cout << endl << "Utilisation> " << inName << " fichier_image fichier_noyau [fichier_convolve=convolve.cl]" << endl;
     exit(1);
 }
 
@@ -67,9 +67,6 @@ cl_device_id create_device() {
         perror("Couldn't access any devices");
         exit(1);
     }
-
-    printf("Found %d GPU.\n", nGPU);
-    printf("Found %d CPU.\n", nCPU);
 
     /* Access a device */
     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &dev, NULL);
@@ -143,7 +140,7 @@ int loadArguments(int argc, char **argv) {
     else if (argc==3){
         pathToImage=argv[1];
         pathToFilter=argv[2];
-        pathToConvolve="src/convolveOpt.cl";
+        pathToConvolve="src/convolve.cl";
     }
     else{
         pathToImage=argv[1];
@@ -175,6 +172,7 @@ int main(int argc, char** argv) {
     Filter filter(pathToFilter);
     int d_filterSize = filter.size();
     int d_imWidth = exampleImg.getWidth();
+    int d_imHeight = exampleImg.getHeight();
 
     /* Création du device et du context*/
     device = create_device();
@@ -185,6 +183,7 @@ int main(int argc, char** argv) {
     }
 
     /* Compilation du programme*/
+    int localSize = 32;
     cl_program program;
     char options[50];
     sprintf(options, "-DBLOCK_SIZE=%d", localSize);
@@ -233,7 +232,8 @@ int main(int argc, char** argv) {
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputFilter);
     err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_output);
     err |= clSetKernelArg(kernel, 3, sizeof(int), &d_imWidth);
-    err |= clSetKernelArg(kernel, 4, sizeof(int), &d_filterSize);
+    err |= clSetKernelArg(kernel, 4, sizeof(int), &d_imHeight);
+    err |= clSetKernelArg(kernel, 5, sizeof(int), &d_filterSize);
     if(err != CL_SUCCESS){
         printf("Set kernel argument fail");
         exit(-1);
@@ -249,7 +249,6 @@ int main(int argc, char** argv) {
     int globalH = localSize * (exampleImg.getHeight()/localSize) + localSize;
     globalWorkSize[0] = globalW;
     globalWorkSize[1] = globalH;
-    printf("width = %d and height = %d", globalWorkSize[0], globalWorkSize[1]);
     clEnqueueNDRangeKernel(cmdQueue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
 
     clEnqueueReadBuffer(cmdQueue, d_output, CL_TRUE, 0, datasize, &filteredImage.getData()->at(0), 0 , NULL, NULL);
