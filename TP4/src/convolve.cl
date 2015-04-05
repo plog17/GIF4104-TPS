@@ -9,18 +9,18 @@ void convolve(__global unsigned char* inputImage, __constant float* inputFilter,
     int idX = get_local_id(0);
     int idY = get_local_id(1);
 
-    bool dummyThread = False;
+    bool dummyThread = false;
     
     // identification globale
     int x = i*BLOCK_SIZE + idX;
     int y = j*BLOCK_SIZE + idY;
     if(x >= imWidth - filterSize){
         x = imWidth - filterSize;
-    	dummyThread = True;
+    	dummyThread = true;
     }
     if(y >= imHeight - filterSize){
         y = imHeight - filterSize;
-	dummyThread = True;
+	dummyThread = true;
     }
 
     //Tableau local augmenté en fonction de la taille du filtre
