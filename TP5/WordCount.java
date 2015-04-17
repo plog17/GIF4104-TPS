@@ -12,11 +12,12 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 import java.io.IOException;
 import java.lang.String;
+import java.util.ArrayList;
 import java.util.StringTokenizer;
 
 public class WordCount {
 
-  public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, FileIndexWriteable>{
+  public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, FileIndexWritable>{
 
     private Text word = new Text();
     String fileName = new String();
@@ -26,24 +27,22 @@ public class WordCount {
       fileName = ((FileSplit) context.getInputSplit()).getPath().toString();
       while (itr.hasMoreTokens()) {
         word.set(itr.nextToken());
-        FileIndexWriteable fileValue = new FileIndexWriteable(0, key.get());
+        FileIndexWritable fileValue = new FileIndexWritable(0, key.get());
         context.write(word, fileValue);
       }
     }
   }
 
   public static class IntSumReducer
-       extends Reducer<Text,FileIndexWriteable,Text,LongWritable> {
-    private LongWritable result = new LongWritable();
-
-    public void reduce(Text key, Iterable<FileIndexWriteable> values, Context context
+       extends Reducer<Text,FileIndexWritable,Text,ArrayFileIndexWritable> {
+    public void reduce(Text key, Iterable<FileIndexWritable> values, Context context
                        ) throws IOException, InterruptedException {
-      long sum = 0;
-      for (FileIndexWriteable val : values) {
-        sum = val.position;
+      ArrayList<FileIndexWritable> fileList = new ArrayList<>();
+      for (FileIndexWritable val : values) {
+        fileList.add(new FileIndexWritable(val));
       }
-      result.set(sum);
-      context.write(key, result);
+      context.write(key, new ArrayFileIndexWritable(FileIndexWritable.class,
+              fileList.toArray(new FileIndexWritable[fileList.size()])));
     }
   }
 
@@ -52,12 +51,12 @@ public class WordCount {
     Job job = Job.getInstance(conf, "word count");
     job.setJarByClass(WordCount.class);
     job.setMapperClass(TokenizerMapper.class);
-    job.setCombinerClass(IntSumReducer.class);
+    //job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
     job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(FileIndexWriteable.class);
+    job.setMapOutputValueClass(FileIndexWritable.class);
     job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(LongWritable.class);
+    job.setOutputValueClass(ArrayFileIndexWritable.class);
     FileInputFormat.addInputPath(job, new Path(args[0]));
     FileOutputFormat.setOutputPath(job, new Path(args[1]));
     System.exit(job.waitForCompletion(true) ? 0 : 1);
