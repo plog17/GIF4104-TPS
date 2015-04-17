@@ -1,3 +1,4 @@
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -15,32 +16,31 @@ import java.util.StringTokenizer;
 
 public class WordCount {
 
-  public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, LongWritable>{
+  public static class TokenizerMapper extends Mapper<LongWritable, Text, Text, FileIndexWriteable>{
 
     private Text word = new Text();
     String fileName = new String();
 
-    public void map(LongWritable key, Text value, Context context
-                    ) throws IOException, InterruptedException {
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       StringTokenizer itr = new StringTokenizer(value.toString());
       fileName = ((FileSplit) context.getInputSplit()).getPath().toString();
       while (itr.hasMoreTokens()) {
         word.set(itr.nextToken());
-        context.write(new Text(fileName), key);
+        FileIndexWriteable fileValue = new FileIndexWriteable(0, key.get());
+        context.write(word, fileValue);
       }
     }
   }
 
   public static class IntSumReducer
-       extends Reducer<Text,LongWritable,Text,LongWritable> {
+       extends Reducer<Text,FileIndexWriteable,Text,LongWritable> {
     private LongWritable result = new LongWritable();
 
-    public void reduce(Text key, Iterable<LongWritable> values,
-                       Context context
+    public void reduce(Text key, Iterable<FileIndexWriteable> values, Context context
                        ) throws IOException, InterruptedException {
       long sum = 0;
-      for (LongWritable val : values) {
-        sum = val.get();
+      for (FileIndexWriteable val : values) {
+        sum = val.position;
       }
       result.set(sum);
       context.write(key, result);
@@ -54,6 +54,8 @@ public class WordCount {
     job.setMapperClass(TokenizerMapper.class);
     job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
+    job.setMapOutputKeyClass(Text.class);
+    job.setMapOutputValueClass(FileIndexWriteable.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(LongWritable.class);
     FileInputFormat.addInputPath(job, new Path(args[0]));
