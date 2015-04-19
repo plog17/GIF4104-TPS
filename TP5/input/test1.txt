@@ -1,0 +1,4 @@
+Voici un test, qui permet de m'assurer
+que mon programme fonctionne en toute sécurité
+je vais m'assurer d'utiliser deux fois certains mots
+question de faire un test utile. banane, programme, permet.
