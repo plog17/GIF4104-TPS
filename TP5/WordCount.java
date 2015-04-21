@@ -24,10 +24,13 @@ public class WordCount {
 
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       StringTokenizer itr = new StringTokenizer(value.toString());
+      
       fileName = ((FileSplit) context.getInputSplit()).getPath().toString();
+      int index = Character.getNumericValue(fileName.charAt(fileName.length() - 5)); 
+
       while (itr.hasMoreTokens()) {
         word.set(itr.nextToken());
-        FileIndexWritable fileValue = new FileIndexWritable(0, key.get());
+        FileIndexWritable fileValue = new FileIndexWritable(index, key.get());
         context.write(word, fileValue);
       }
     }
